@@ -25,7 +25,7 @@ describe("valid booking", () => {
     if (!result.ok) return;
     expect(result.alreadyExisted).toBe(false);
     expect(result.garageEmail).toBe("sent");
-    expect(result.booking.reference).toMatch(/^RC-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/);
+    expect(result.booking.reference).toMatch(/^BWC-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/);
 
     const [event] = await activeIn(calendar);
     expect(event.summary).toBe("ENLÈVEMENT — Garage Dupont — 4 jantes");

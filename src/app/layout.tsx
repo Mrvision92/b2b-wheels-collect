@@ -9,10 +9,10 @@ const mona = Mona_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "RimCollect — Enlèvement professionnel de jantes",
+  title: "B2B Wheels Collect — Enlèvement professionnel de jantes",
   description:
     "Planifiez l'enlèvement de vos jantes directement dans votre garage, en quelques clics. Service réservé aux professionnels de l'automobile.",
-  applicationName: "RimCollect",
+  applicationName: "B2B Wheels Collect",
   formatDetection: { telephone: false, email: false, address: false },
   robots: { index: true, follow: true },
 };

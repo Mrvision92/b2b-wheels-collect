@@ -42,7 +42,7 @@ if (env.calendar.mode !== "google") {
       const id = eventIdFor(randomUUID(), env.secret);
       const inserted = await client.insertEvent({
         id,
-        summary: "TEST RimCollect — à supprimer",
+        summary: "TEST B2B Wheels Collect — à supprimer",
         description: "Événement de test créé par npm run check:services.",
         location: "",
         start,
@@ -75,9 +75,9 @@ if (env.email.mode !== "resend") {
       const mailer = new ResendMailer(env.email.apiKey, env.email.from);
       const { id } = await mailer.send({
         to: env.email.vbmRecipients,
-        subject: "Test RimCollect — configuration des emails",
-        html: "<p>Cet email confirme que RimCollect peut envoyer des emails depuis ce domaine.</p>",
-        text: "Cet email confirme que RimCollect peut envoyer des emails depuis ce domaine.",
+        subject: "Test B2B Wheels Collect — configuration des emails",
+        html: "<p>Cet email confirme que B2B Wheels Collect peut envoyer des emails depuis ce domaine.</p>",
+        text: "Cet email confirme que B2B Wheels Collect peut envoyer des emails depuis ce domaine.",
         replyTo: env.email.replyTo,
         idempotencyKey: `rimcollect/check/${randomUUID()}`,
       });

@@ -102,7 +102,7 @@ export function eventDescription(b: BookingRecord): string {
     `Nombre de jantes : ${b.rimCount}`,
   ];
   if (b.comment) lines.push(`Commentaire : ${b.comment}`);
-  lines.push("", `Itinéraire : ${d.mapsUrl}`, "", "Réservé en ligne sur RimCollect.");
+  lines.push("", `Itinéraire : ${d.mapsUrl}`, "", "Réservé en ligne sur B2B Wheels Collect.");
   return lines.join("\n");
 }
 
@@ -136,13 +136,13 @@ export function toCalendarEvent(b: BookingRecord, requestFingerprint: string): N
   };
 }
 
-export function isRimCollectEvent(event: CalendarEvent): boolean {
+export function isBookingEvent(event: CalendarEvent): boolean {
   return event.privateProps[PROP.marker] === "1" && !!event.privateProps[PROP.reference];
 }
 
 /** Rebuilds a booking from its agenda event (date and time follow the event if VBM moved it). */
 export function fromCalendarEvent(event: CalendarEvent): BookingRecord | null {
-  if (!isRimCollectEvent(event)) return null;
+  if (!isBookingEvent(event)) return null;
   const p = event.privateProps;
   return {
     reference: p[PROP.reference],

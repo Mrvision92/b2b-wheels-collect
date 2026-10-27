@@ -1,11 +1,11 @@
 /**
- * Réglages des disponibilités RimCollect.
+ * Réglages des disponibilités B2B Wheels Collect.
  *
  * C'est le seul fichier à modifier pour changer les jours, horaires et
  * créneaux proposés aux garages. Après modification : redéployer le site.
  *
  * Pour fermer ponctuellement un créneau ou une journée sans redéployer,
- * VBM peut aussi créer un événement dans l'agenda Google « RimCollect —
+ * VBM peut aussi créer un événement dans l'agenda Google « B2B Wheels Collect —
  * Enlèvements » (voir README, section « Bloquer un créneau »).
  */
 

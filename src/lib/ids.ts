@@ -23,7 +23,7 @@ export function requestFingerprint(requestId: string, secret: string): string {
 
 const CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
-/** Short human-readable reference, e.g. "RC-7K4M-2QX9". */
+/** Short human-readable reference, e.g. "BWC-7K4M-2QX9". */
 export function referenceFor(requestId: string, secret: string): string {
   const bytes = hmac(secret, "reference", requestId);
   let bits = 0;
@@ -38,7 +38,7 @@ export function referenceFor(requestId: string, secret: string): string {
     }
     if (out.length === 8) break;
   }
-  return `RC-${out.slice(0, 4)}-${out.slice(4)}`;
+  return `BWC-${out.slice(0, 4)}-${out.slice(4)}`;
 }
 
 /** Non-reversible tag for logs, so log lines never carry personal data. */

@@ -60,7 +60,7 @@ export function getServices() {
     vbmRecipients: env.email.vbmRecipients.length
       ? env.email.vbmRecipients
       : env.email.mode === "demo"
-        ? ["vbm-demo@rimcollect.local"]
+        ? ["vbm-demo@b2bwheelscollect.local"]
         : [],
     replyTo: env.email.replyTo ?? env.email.vbmRecipients[0],
   };

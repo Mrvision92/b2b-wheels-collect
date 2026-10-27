@@ -159,13 +159,13 @@ describe("Resend mailer", () => {
       calls.push({ url, init });
       return Response.json({ id: "email_123" });
     }) as unknown as typeof fetch;
-    const mailer = new ResendMailer("re_key", "RimCollect <enlevements@example.be>", fn);
+    const mailer = new ResendMailer("re_key", "B2B Wheels Collect <enlevements@example.be>", fn);
     expect(await mailer.send(email)).toEqual({ id: "email_123" });
     const headers = calls[0].init.headers as Record<string, string>;
     expect(headers["idempotency-key"]).toBe(email.idempotencyKey);
     expect(headers.authorization).toBe("Bearer re_key");
     expect(JSON.parse(String(calls[0].init.body))).toMatchObject({
-      from: "RimCollect <enlevements@example.be>",
+      from: "B2B Wheels Collect <enlevements@example.be>",
       to: ["atelier@garage.be"],
       reply_to: "planning@vbm.be",
     });

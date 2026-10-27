@@ -43,7 +43,7 @@ test("a garage books a pickup and sees a real confirmation", async ({ page }) =>
 
   await page.getByRole("button", { name: "Confirmer mon enlèvement" }).click();
   await expect(page.getByRole("heading", { name: "Votre enlèvement est confirmé." })).toBeVisible();
-  await expect(page.getByText(/^RC-[0-9A-Z]{4}-[0-9A-Z]{4}$/)).toBeVisible();
+  await expect(page.getByText(/^BWC-[0-9A-Z]{4}-[0-9A-Z]{4}$/)).toBeVisible();
   await expect(page.getByText("4 jantes", { exact: true })).toBeVisible();
   await expect(page.getByText("aucun email réel n'a été envoyé")).toBeVisible();
   await expectNoHorizontalScroll(page);

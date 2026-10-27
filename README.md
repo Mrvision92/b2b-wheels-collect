@@ -1,10 +1,10 @@
-# RimCollect
+# B2B Wheels Collect
 
 Site one-page de réservation d'enlèvements de jantes pour les garages, opéré par VBM Wheels Repair.
 
 Le garage remplit un formulaire, choisit une date et un créneau, et confirme. Ensuite, automatiquement :
 
-1. l'enlèvement est ajouté à l'agenda Google « RimCollect — Enlèvements » de VBM ;
+1. l'enlèvement est ajouté à l'agenda Google « B2B Wheels Collect — Enlèvements » de VBM ;
 2. le garage reçoit un email de confirmation ;
 3. VBM reçoit un email avec toutes les informations (itinéraire Google Maps, appel, email).
 
@@ -76,8 +76,8 @@ L'agenda Google de VBM sert d'outil de planification **et** d'enregistrement des
 
 Préparation commune (une seule fois) :
 
-1. Dans Google Agenda (compte professionnel de VBM), créez un agenda nommé **RimCollect — Enlèvements**, fuseau horaire Bruxelles. *(Inutile avec l'option B, le script le crée.)*
-2. Sur https://console.cloud.google.com, créez un projet (par exemple « RimCollect ») puis activez **Google Calendar API** (API et services → Bibliothèque).
+1. Dans Google Agenda (compte professionnel de VBM), créez un agenda nommé **B2B Wheels Collect — Enlèvements**, fuseau horaire Bruxelles. *(Inutile avec l'option B, le script le crée.)*
+2. Sur https://console.cloud.google.com, créez un projet (par exemple « B2B Wheels Collect ») puis activez **Google Calendar API** (API et services → Bibliothèque).
 
 ### Option A — compte de service (recommandée)
 
@@ -85,13 +85,13 @@ Aucun jeton n'expire, et le compte n'a accès qu'à l'agenda partagé avec lui.
 
 1. Console Google Cloud → IAM et administration → **Comptes de service** → Créer. Aucun rôle n'est nécessaire.
 2. Ouvrez le compte de service → **Clés** → Ajouter une clé → JSON. Un fichier est téléchargé : gardez-le secret.
-3. Dans Google Agenda → paramètres de l'agenda « RimCollect — Enlèvements » → **Partager avec des personnes** : ajoutez l'adresse du compte de service (`…@….iam.gserviceaccount.com`) avec le droit **« Apporter des modifications aux événements »**.
+3. Dans Google Agenda → paramètres de l'agenda « B2B Wheels Collect — Enlèvements » → **Partager avec des personnes** : ajoutez l'adresse du compte de service (`…@….iam.gserviceaccount.com`) avec le droit **« Apporter des modifications aux événements »**.
 4. Dans les paramètres de l'agenda → **Intégrer l'agenda** : copiez l'**ID de l'agenda**.
 5. Renseignez :
 
 ```bash
 GOOGLE_CALENDAR_ID=xxxxxxxx@group.calendar.google.com
-GOOGLE_SERVICE_ACCOUNT_EMAIL=rimcollect@votre-projet.iam.gserviceaccount.com
+GOOGLE_SERVICE_ACCOUNT_EMAIL=b2b-wheels-collect@votre-projet.iam.gserviceaccount.com
 GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIE…\n-----END PRIVATE KEY-----\n"
 ```
 
@@ -107,9 +107,9 @@ Permission demandée : `calendar.events` uniquement. Le compte ne voit aucun aut
 2. **Identifiants** → Créer des identifiants → ID client OAuth → type **Application de bureau**.
 3. Copiez l'ID client et le secret dans `.env.local` (`GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`).
 4. Lancez `npm run google:connect`, ouvrez le lien affiché, connectez-vous avec le compte de VBM et acceptez.
-5. Le script crée l'agenda « RimCollect — Enlèvements » et affiche `GOOGLE_CALENDAR_ID` et `GOOGLE_OAUTH_REFRESH_TOKEN` à recopier.
+5. Le script crée l'agenda « B2B Wheels Collect — Enlèvements » et affiche `GOOGLE_CALENDAR_ID` et `GOOGLE_OAUTH_REFRESH_TOKEN` à recopier.
 
-Permission demandée : `calendar.app.created`, c'est-à-dire uniquement les agendas créés par RimCollect.
+Permission demandée : `calendar.app.created`, c'est-à-dire uniquement les agendas créés par B2B Wheels Collect.
 
 ### Vérifier
 
@@ -122,7 +122,7 @@ Le script lit l'agenda, crée un événement de test dans plus d'un an, le modif
 ## 4. Connecter l'envoi d'emails (Resend)
 
 1. Créez un compte sur https://resend.com.
-2. **Domains** → Add domain : utilisez le futur domaine du site (par exemple `rimcollect.be`) ou un sous-domaine (`mail.rimcollect.be`).
+2. **Domains** → Add domain : utilisez le futur domaine du site (par exemple `b2bwheelscollect.be`) ou un sous-domaine (`mail.b2bwheelscollect.be`).
 3. Ajoutez chez votre registraire DNS les enregistrements affichés par Resend (SPF et DKIM, plus MX pour le retour). Attendez la mention **Verified**.
 4. Recommandé : ajoutez un enregistrement DMARC, par exemple `_dmarc` → `v=DMARC1; p=none; rua=mailto:dmarc@votre-domaine.be`.
 5. **API Keys** → Create API key avec la permission « Sending access », restreinte à ce domaine.
@@ -130,7 +130,7 @@ Le script lit l'agenda, crée un événement de test dans plus d'un an, le modif
 
 ```bash
 RESEND_API_KEY=re_…
-EMAIL_FROM="RimCollect <enlevements@rimcollect.be>"
+EMAIL_FROM="B2B Wheels Collect <enlevements@b2bwheelscollect.be>"
 VBM_NOTIFICATION_EMAIL=planning@vbm-exemple.be
 EMAIL_REPLY_TO=planning@vbm-exemple.be
 ```
@@ -173,7 +173,7 @@ Après une modification : redéployez (un `git push` suffit sur Vercel).
 
 Tout se fait dans Google Agenda, sans redéploiement :
 
-| Besoin | Action dans l'agenda « RimCollect — Enlèvements » |
+| Besoin | Action dans l'agenda « B2B Wheels Collect — Enlèvements » |
 | --- | --- |
 | Voir les enlèvements | ouvrir l'agenda (vue jour, semaine ou mois) |
 | Annuler un enlèvement | supprimer l'événement : la place se libère immédiatement sur le site |

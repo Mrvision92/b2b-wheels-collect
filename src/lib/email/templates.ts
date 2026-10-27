@@ -61,7 +61,7 @@ function layout(options: { title: string; preheader: string; body: string; foote
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${PAPER};">
 <tr><td align="center" style="padding:40px 12px 48px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:580px;">
-<tr><td style="padding:0 4px 20px;font-family:${FONT};font-size:18px;font-weight:600;letter-spacing:-0.3px;color:${INK};">RimCollect</td></tr>
+<tr><td style="padding:0 4px 20px;font-family:${FONT};font-size:18px;font-weight:600;letter-spacing:-0.3px;color:${INK};">B2B Wheels Collect</td></tr>
 <tr><td class="card" style="background:#ffffff;border:1px solid ${LINE};padding:44px 48px;font-family:${FONT};color:${INK};">
 ${options.body}
 </td></tr>
@@ -134,7 +134,7 @@ export function renderGarageConfirmation(b: BookingRecord, ctx: EmailContext): E
 <p style="margin:2px 0 24px;font-size:23px;line-height:29px;font-weight:600;letter-spacing:-0.4px;color:${MUTED};">${escapeHtml(d.slotLabel)}</p>
 ${detailRows(rows)}
 <p style="margin:28px 0 0;font-size:15px;line-height:23px;color:${INK};">Besoin de modifier ou d'annuler&nbsp;? Répondez simplement à cet email${escapeHtml(contact)}, en mentionnant votre référence.</p>
-<p style="margin:24px 0 0;font-size:15px;line-height:23px;color:${INK};">Merci pour votre confiance.<br>L'équipe RimCollect / VBM Wheels Repair</p>`;
+<p style="margin:24px 0 0;font-size:15px;line-height:23px;color:${INK};">Merci pour votre confiance.<br>L'équipe B2B Wheels Collect / VBM Wheels Repair</p>`;
 
   const footer = `Cet email confirme une réservation effectuée sur ${escapeHtml(host(ctx.appUrl))}. Vos coordonnées servent uniquement à organiser cet enlèvement. <a href="${escapeHtml(ctx.appUrl)}/#confidentialite" style="color:${MUTED};">Confidentialité</a>`;
 
@@ -155,7 +155,7 @@ ${detailRows(rows)}
     `Besoin de modifier ou d'annuler ? Répondez simplement à cet email${contact}, en mentionnant votre référence.`,
     "",
     "Merci pour votre confiance.",
-    "L'équipe RimCollect / VBM Wheels Repair",
+    "L'équipe B2B Wheels Collect / VBM Wheels Repair",
   ].join("\n");
 
   return {
@@ -211,7 +211,7 @@ ${warning}<p style="margin:0 0 10px;font-size:14px;line-height:20px;color:${MUTE
 <p style="margin:2px 0 26px;font-size:23px;line-height:29px;font-weight:600;letter-spacing:-0.4px;color:${MUTED};">${escapeHtml(d.slotLabel)}</p>
 <div style="margin:0 0 22px;">${buttons}</div>
 ${detailRows(rows)}
-<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:${MUTED};">L'enlèvement a été ajouté automatiquement à l'agenda « RimCollect — Enlèvements ».</p>`;
+<p style="margin:24px 0 0;font-size:13px;line-height:19px;color:${MUTED};">L'enlèvement a été ajouté automatiquement à l'agenda « B2B Wheels Collect — Enlèvements ».</p>`;
 
   const text = [
     `Nouvel enlèvement — ${b.reference}`,
@@ -239,7 +239,7 @@ ${detailRows(rows)}
       title: subjectLine,
       preheader: `${d.dateLong}, ${d.slotLabel} — ${d.rims} — ${d.address}`,
       body,
-      footer: "Notification automatique RimCollect. Ne pas transférer : contient des données personnelles.",
+      footer: "Notification automatique B2B Wheels Collect. Ne pas transférer : contient des données personnelles.",
     }),
     text,
   };

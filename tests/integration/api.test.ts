@@ -223,7 +223,7 @@ describe("protected and demo-only endpoints", () => {
     process.env.DEMO_MODE = "false";
     process.env.APP_SECRET = "s".repeat(40);
     process.env.RESEND_API_KEY = "re_test";
-    process.env.EMAIL_FROM = "RimCollect <enlevements@example.be>";
+    process.env.EMAIL_FROM = "B2B Wheels Collect <enlevements@example.be>";
     const response = await getDemoEmail(new Request("http://localhost:3100"), {
       params: Promise.resolve({ id: "0123456789abcdef01234567" }),
     });
@@ -241,7 +241,7 @@ describe("protected and demo-only endpoints", () => {
     process.env.DEMO_MODE = "false";
     process.env.APP_SECRET = "short";
     process.env.RESEND_API_KEY = "re_test";
-    process.env.EMAIL_FROM = "RimCollect <enlevements@example.be>";
+    process.env.EMAIL_FROM = "B2B Wheels Collect <enlevements@example.be>";
     await expect(getHealth()).rejects.toThrow("APP_SECRET");
   });
 });

@@ -79,7 +79,7 @@ describe("month availability sent to the browser", () => {
 
     const month = await getMonthAvailability("2026-11", { calendar, config: deps.config, now: NOW });
     const payload = JSON.stringify(month);
-    for (const secret of ["Garage Dupont", "Marie", "garage-dupont", "470123456", "Station", "RC-"]) {
+    for (const secret of ["Garage Dupont", "Marie", "garage-dupont", "470123456", "Station", "BWC-"]) {
       expect(payload).not.toContain(secret);
     }
     const slot = month.days[0].slots[0];

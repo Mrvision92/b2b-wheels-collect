@@ -77,7 +77,7 @@ export function getServerEnv(): ServerEnv {
   const email: EmailSettings = {
     mode: !forceDemo && resendKey && from ? "resend" : "demo",
     apiKey: resendKey ?? "",
-    from: from ?? "RimCollect <demo@rimcollect.local>",
+    from: from ?? "B2B Wheels Collect <demo@b2bwheelscollect.local>",
     replyTo: read("EMAIL_REPLY_TO"),
     vbmRecipients: list("VBM_NOTIFICATION_EMAIL"),
   };

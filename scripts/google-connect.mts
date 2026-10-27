@@ -1,12 +1,12 @@
 /**
- * Connects RimCollect to VBM's Google account (option B of the README).
+ * Connects B2B Wheels Collect to VBM's Google account (option B of the README).
  *
  *   npm run google:connect
  *
  * Requires GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET (OAuth client
  * of type "Application de bureau") in .env.local. Opens a consent page, then:
- *   1. obtains a refresh token limited to calendars created by RimCollect;
- *   2. creates the "RimCollect — Enlèvements" agenda in VBM's account;
+ *   1. obtains a refresh token limited to calendars created by B2B Wheels Collect;
+ *   2. creates the "B2B Wheels Collect — Enlèvements" agenda in VBM's account;
  *   3. prints the values to copy into the hosting environment variables.
  *
  * Nothing is written to disk.
@@ -18,7 +18,7 @@ import { createServer } from "node:http";
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 
 const SCOPE = "https://www.googleapis.com/auth/calendar.app.created";
-const CALENDAR_NAME = "RimCollect — Enlèvements";
+const CALENDAR_NAME = "B2B Wheels Collect — Enlèvements";
 const PORT = 53682;
 const REDIRECT_URI = `http://127.0.0.1:${PORT}/oauth/callback`;
 
@@ -72,7 +72,7 @@ async function createCalendar(accessToken: string) {
     headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
     body: JSON.stringify({
       summary: CALENDAR_NAME,
-      description: "Enlèvements de jantes réservés en ligne sur RimCollect.",
+      description: "Enlèvements de jantes réservés en ligne sur B2B Wheels Collect.",
       timeZone: "Europe/Brussels",
     }),
   });

@@ -30,7 +30,7 @@ export default function Home() {
       ) : null}
 
       <header className="mx-auto flex w-full max-w-[1120px] items-center justify-between px-5 py-5 sm:px-6">
-        <Link href="/" aria-label="RimCollect, accueil" className="rounded-sm text-ink">
+        <Link href="/" aria-label="B2B Wheels Collect, accueil" className="rounded-sm text-ink">
           <Logo />
         </Link>
         <div className="flex items-center gap-5 text-[14px]">
@@ -42,9 +42,7 @@ export default function Home() {
             >
               Contact
             </a>
-          ) : (
-            <span className="text-muted sm:hidden">Service professionnel</span>
-          )}
+          ) : null}
         </div>
       </header>
 
@@ -66,7 +64,7 @@ export default function Home() {
 
       <footer className="mx-auto mt-16 w-full max-w-[1120px] px-5 pb-10 sm:px-6">
         <div className="flex flex-col gap-3 border-t border-hairline pt-6 text-[13px] text-muted sm:flex-row sm:items-center sm:justify-between">
-          <p>RimCollect, le service d&apos;enlèvement de VBM Wheels Repair.</p>
+          <p>B2B Wheels Collect, le service d&apos;enlèvement de VBM Wheels Repair.</p>
           <nav aria-label="Informations" className="flex flex-wrap gap-x-5 gap-y-2">
             {contact.phone ? (
               <a href={contact.phone.href} className="hover:text-ink">
