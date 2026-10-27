@@ -1,26 +1,153 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * RimCollect design tokens — aligned with the VBM Wheels Repair visual
+ * language: paper background, deep ink, Apple-like greys, hairline borders,
+ * black pill buttons.
+ */
+@theme {
+  --color-paper: #f8f8f8;
+  --color-surface: #ffffff;
+  --color-ink: #1d1d1f;
+  --color-graphite: #48484a;
+  --color-muted: #6e6e73;
+  --color-subtle: #86868b;
+  --color-faint: #c7c7cc;
+  --color-hairline: #e3e3e1;
+  --color-line: #d2d2d0;
+  --color-fill: #f2f2f0;
+  --color-danger: #b4232a;
+  --color-danger-soft: #fdf4f4;
+
+  --font-sans: var(--font-mona), system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 17px;
+    line-height: 1.5;
+    letter-spacing: -0.004em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: var(--color-ink);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .field-input {
+    display: block;
+    width: 100%;
+    height: 3rem;
+    padding: 0 0.95rem;
+    font-size: 16px; /* 16px avoids zoom on iOS */
+    line-height: 1.25;
+    color: var(--color-ink);
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: 12px;
+    transition:
+      border-color 160ms ease,
+      box-shadow 160ms ease;
+    appearance: none;
+  }
+
+  .field-input::placeholder {
+    color: var(--color-subtle);
+  }
+
+  .field-input:hover {
+    border-color: #a1a1a6;
+  }
+
+  .field-input:focus {
+    outline: none;
+    border-color: var(--color-ink);
+    box-shadow: 0 0 0 3px rgb(29 29 31 / 0.08);
+  }
+
+  .field-input[aria-invalid="true"] {
+    border-color: var(--color-danger);
+  }
+
+  .field-input[aria-invalid="true"]:focus {
+    box-shadow: 0 0 0 3px rgb(180 35 42 / 0.12);
+  }
+
+  textarea.field-input {
+    height: auto;
+    min-height: 6.5rem;
+    padding: 0.8rem 0.95rem;
+    resize: vertical;
+    line-height: 1.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes rc-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes rc-check {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes rc-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes rc-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
