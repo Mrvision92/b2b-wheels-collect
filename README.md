@@ -20,7 +20,7 @@ Il n'y a ni compte, ni mot de passe, ni tableau de bord : VBM organise les enlè
 4. [Connecter l'envoi d'emails (Resend)](#4-connecter-lenvoi-demails-resend)
 5. [Régler les jours, horaires et créneaux](#5-régler-les-jours-horaires-et-créneaux)
 6. [Utilisation au quotidien par VBM](#6-utilisation-au-quotidien-par-vbm)
-7. [Mettre en ligne (Vercel)](#7-mettre-en-ligne-vercel)
+7. [Mettre en ligne (Hostinger)](#7-mettre-en-ligne-hostinger)
 8. [Fiabilité : ce qui est garanti](#8-fiabilité--ce-qui-est-garanti)
 9. [Sécurité et RGPD](#9-sécurité-et-rgpd)
 10. [Tests](#10-tests)
@@ -123,7 +123,7 @@ Le script lit l'agenda, crée un événement de test dans plus d'un an, le modif
 
 1. Créez un compte sur https://resend.com.
 2. **Domains** → Add domain : utilisez le futur domaine du site (par exemple `b2bwheelscollect.be`) ou un sous-domaine (`mail.b2bwheelscollect.be`).
-3. Ajoutez chez votre registraire DNS les enregistrements affichés par Resend (SPF et DKIM, plus MX pour le retour). Attendez la mention **Verified**.
+3. Ajoutez dans la zone DNS du domaine (chez Hostinger : Domaines → DNS / Nameservers) les enregistrements affichés par Resend : DKIM, SPF et MX sur le sous-domaine `send`. Ils ne touchent pas aux boîtes mail existantes. Attendez la mention **Verified**.
 4. Recommandé : ajoutez un enregistrement DMARC, par exemple `_dmarc` → `v=DMARC1; p=none; rua=mailto:dmarc@votre-domaine.be`.
 5. **API Keys** → Create API key avec la permission « Sending access », restreinte à ce domaine.
 6. Renseignez :
@@ -185,23 +185,44 @@ Tout se fait dans Google Agenda, sans redéploiement :
 
 Le garage n'est pas prévenu automatiquement d'un déplacement ou d'une annulation faits dans Google Agenda : contactez-le (son téléphone et son email sont dans l'événement).
 
-## 7. Mettre en ligne (Vercel)
+## 7. Mettre en ligne (Hostinger)
 
-1. Poussez le dépôt sur GitHub (privé), puis importez-le sur https://vercel.com (framework détecté automatiquement).
-2. **Settings → Environment Variables** : saisissez les variables de `.env.example` pour l'environnement *Production*, avec `DEMO_MODE=false`, `APP_URL=https://votre-domaine.be`, un `APP_SECRET` long (`openssl rand -base64 48`) et un `CRON_SECRET`.
-3. **Settings → Domains** : ajoutez le domaine et suivez les instructions DNS. Le HTTPS est automatique.
-4. Recommandé : **Storage / Marketplace → Upstash Redis** (offre gratuite). Les variables `UPSTASH_REDIS_REST_URL` et `UPSTASH_REDIS_REST_TOKEN` sont ajoutées pour vous : elles partagent le verrou anti-double réservation entre toutes les instances serverless.
-5. Redéployez, puis vérifiez `https://votre-domaine.be/api/health` : `calendar` doit valoir `google` et `email` `resend`.
+Le site s'héberge sur l'hébergement **Node.js géré** de Hostinger (« Web Apps » dans hPanel), qui fait tourner Next.js avec sa partie serveur (réservations, emails, Google Agenda). Il faut une offre qui inclut les applications Node.js (Business ou Cloud) : un hébergement mutualisé classique en `public_html` ne suffit pas.
 
-La page est générée au moment du déploiement : après avoir modifié une variable affichée sur le site (coordonnées, mentions légales, bandeau de démonstration), redéployez.
+1. **Créer l'application** : hPanel → Sites web → Ajouter un site → application Node.js → importer depuis GitHub le dépôt `Mrvision92/b2b-wheels-collect`, branche `feature/rimcollect-v1` (ou `main` après fusion). Chaque `git push` sur cette branche redéploie automatiquement.
+2. **Réglages de build** (Next.js est détecté tout seul) :
 
-Renvoi automatique des emails en échec : `vercel.json` déclare une tâche planifiée quotidienne (offre Hobby). Avec l'offre Pro, passez la fréquence à `*/15 * * * *`. Un renvoi est aussi tenté après chaque nouvelle réservation. Tout autre planificateur peut appeler :
+   | Champ | Valeur |
+   | --- | --- |
+   | Version de Node.js | 22 ou 24 |
+   | Type d'application | `next` |
+   | Script de build | `build` |
+   | Dossier de sortie | `.next` |
 
-```bash
-curl -H "Authorization: Bearer $CRON_SECRET" https://votre-domaine.be/api/cron/notifications
-```
+   Ne modifiez pas `next.config.ts` : Hostinger y ajoute lui-même la sortie `standalone` qu'il démarre.
+3. **Variables d'environnement**, avant le premier build : partez de `.env.example`, remplissez les valeurs et utilisez **Import .env** (ou ajoutez-les une à une). En production : `DEMO_MODE=false`, `APP_URL=https://votre-domaine.be`, un `APP_SECRET` long (`openssl rand -base64 48`), un `CRON_SECRET`, puis les valeurs Google, Resend, VBM et légales. La clé privée Google reste sur une seule ligne avec ses `\n`. Enregistrer redéploie le site.
+4. **Domaine** : le domaine étant déjà chez Hostinger, rattachez-le à l'application dans hPanel et vérifiez que le certificat SSL (HTTPS) est actif.
+5. **Renvoi automatique des emails en échec** : hPanel → Cron Jobs → toutes les 15 minutes (`*/15 * * * *`), commande :
 
-Autre hébergeur : n'importe quel serveur Node.js (`npm run build && npm start`) derrière HTTPS convient. Sur un seul serveur, le verrou en mémoire suffit.
+   ```bash
+   curl -fsS -H "Authorization: Bearer VOTRE_CRON_SECRET" https://votre-domaine.be/api/cron/notifications > /dev/null
+   ```
+
+   Un renvoi est aussi tenté après chaque nouvelle réservation.
+6. **Vérifier** : `https://votre-domaine.be/api/health` doit indiquer `"calendar":"google"` et `"email":"resend"`. Puis, en local avec les mêmes valeurs dans `.env.local` : `npm run check:services -- --write --email`.
+
+À savoir :
+
+- Hostinger met l'application en veille après une période sans visite ; la première visite suivante prend quelques secondes, c'est normal.
+- Le site tourne sur un seul processus : le verrou en mémoire protège pleinement contre les réservations simultanées, Upstash est inutile.
+- La page est générée au moment du build : après avoir modifié une variable affichée sur le site (coordonnées, mentions légales, bandeau de démonstration), enregistrez pour redéployer.
+- `vercel.json` et `.vercelignore` ne servent qu'à Vercel et sont ignorés par Hostinger.
+
+### Alternative : Vercel
+
+La démonstration actuelle tourne sur Vercel (https://b2b-wheels-collect.vercel.app). Pour y passer en production : importez le dépôt sur https://vercel.com, saisissez les mêmes variables dans **Settings → Environment Variables**, ajoutez le domaine dans **Settings → Domains**, et activez **Upstash Redis** (Marketplace, offre gratuite) pour partager le verrou entre les instances. `vercel.json` déclare la tâche planifiée de renvoi des emails (quotidienne en offre Hobby, `*/15 * * * *` possible en offre Pro).
+
+Autre serveur : n'importe quel serveur Node.js (`npm run build && npm start`) derrière HTTPS convient, avec une tâche planifiée qui appelle l'adresse ci-dessus.
 
 Option anti-spam : créez un widget Cloudflare Turnstile (mode « Managed ») et renseignez `NEXT_PUBLIC_TURNSTILE_SITE_KEY` et `TURNSTILE_SECRET_KEY`. Sans ces variables, la protection repose sur un champ piège invisible et une limite de tentatives par connexion.
 
