@@ -1,4 +1,5 @@
 import path from "node:path";
+import { siteConfig } from "@/config/site";
 
 /**
  * Server configuration, read from environment variables (see .env.example).
@@ -110,6 +111,7 @@ export type PublicSettings = {
   demo: { calendar: boolean; email: boolean };
   contactPhone?: string;
   contactEmail?: string;
+  contactWhatsapp?: string;
   turnstileSiteKey?: string;
   legal: {
     entity?: string;
@@ -126,14 +128,15 @@ export function getPublicSettings(): PublicSettings {
   const emailLive = !forceDemo && !!read("RESEND_API_KEY") && !!read("EMAIL_FROM");
   return {
     demo: { calendar: !calendarLive, email: !emailLive },
-    contactPhone: read("NEXT_PUBLIC_CONTACT_PHONE"),
-    contactEmail: read("NEXT_PUBLIC_CONTACT_EMAIL"),
+    contactPhone: read("NEXT_PUBLIC_CONTACT_PHONE") ?? siteConfig.contact.phone,
+    contactEmail: read("NEXT_PUBLIC_CONTACT_EMAIL") ?? siteConfig.contact.email,
+    contactWhatsapp: read("NEXT_PUBLIC_CONTACT_WHATSAPP") ?? siteConfig.contact.whatsapp,
     turnstileSiteKey: read("NEXT_PUBLIC_TURNSTILE_SITE_KEY"),
     legal: {
       entity: read("LEGAL_ENTITY_NAME"),
       address: read("LEGAL_ADDRESS"),
       vat: read("LEGAL_VAT_NUMBER"),
-      privacyEmail: read("LEGAL_PRIVACY_EMAIL") ?? read("NEXT_PUBLIC_CONTACT_EMAIL"),
+      privacyEmail: read("LEGAL_PRIVACY_EMAIL") ?? read("NEXT_PUBLIC_CONTACT_EMAIL") ?? siteConfig.contact.email,
       retention: read("LEGAL_RETENTION"),
     },
   };

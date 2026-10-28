@@ -118,3 +118,34 @@ test("the layout fits the screen without horizontal scrolling", async ({ page })
   await choose(page, page.locator('input[name="date"]:not(:disabled)').first());
   await expectNoHorizontalScroll(page);
 });
+
+test("the contact section offers WhatsApp, phone and email", async ({ page }) => {
+  await page.goto("/");
+  const contact = page.locator("#contact");
+  await expect(contact.getByRole("link", { name: /Écrire sur WhatsApp/ })).toHaveAttribute("href", /^https:\/\/wa\.me\/\d{8,15}\?text=/);
+  await expect(contact.getByRole("link", { name: /Appeler/ })).toHaveAttribute("href", /^tel:\+32\d{8,9}$/);
+  await expect(contact.getByRole("link", { name: /Écrire un email/ })).toHaveAttribute("href", /^mailto:.+@.+/);
+  await expect(contact.getByRole("link", { name: "Itinéraire" })).toHaveCount(3);
+
+  await contact.getByRole("link", { name: "Planifier un enlèvement" }).click();
+  await expect(page.getByLabel("Nom du garage")).toBeInViewport();
+});
+
+test("questions open on demand and every image loads", async ({ page }) => {
+  await page.goto("/");
+  const question = page.getByText("Comment modifier ou annuler un enlèvement ?");
+  const answer = page.getByText(/Répondez simplement à l'email de confirmation/);
+  await expect(answer).toBeHidden();
+  await question.click();
+  await expect(answer).toBeVisible();
+
+  // Scroll through the page so lazy images load, then check none is broken.
+  for (let y = 0; y < 12; y++) await page.mouse.wheel(0, 900);
+  await page.waitForLoadState("networkidle");
+  const broken = await page.evaluate(async () => {
+    const images = [...document.images];
+    await Promise.all(images.map((img) => img.decode().catch(() => undefined)));
+    return images.filter((img) => img.naturalWidth === 0).map((img) => img.currentSrc);
+  });
+  expect(broken).toEqual([]);
+});

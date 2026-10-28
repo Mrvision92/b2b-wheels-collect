@@ -276,7 +276,7 @@ export function BookingForm({ maxRims, turnstileSiteKey }: Props) {
   });
 
   return (
-    <section aria-label="Réservation d'un enlèvement" className="mx-auto w-full max-w-[1120px] scroll-mt-6 sm:px-6">
+    <section id="reservation" aria-label="Réservation d'un enlèvement" className="mx-auto w-full max-w-[1120px] scroll-mt-20 sm:px-6">
       <div className="border-y border-hairline bg-surface sm:border">
         {result ? (
           <Confirmation result={result} onReset={reset} />

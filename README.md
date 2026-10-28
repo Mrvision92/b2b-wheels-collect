@@ -167,7 +167,11 @@ weeklySchedule: {
 },
 ```
 
-Après une modification : redéployez (un `git push` suffit sur Vercel).
+Après une modification : redéployez (un `git push` suffit si l'hébergeur est relié au dépôt).
+
+**Coordonnées et centres** (section Contact, emails) : `src/config/site.ts` contient le numéro WhatsApp, la ligne directe, l'email et les trois centres. Ces valeurs viennent du site VBM et sont à confirmer par VBM. Les variables `NEXT_PUBLIC_CONTACT_PHONE`, `NEXT_PUBLIC_CONTACT_EMAIL` et `NEXT_PUBLIC_CONTACT_WHATSAPP` les remplacent si besoin.
+
+**Images** : `src/assets/images/`, reprises du site VBM. Pour en changer, remplacez le fichier en gardant le même nom (format WebP ou JPEG) : les tailles adaptées à chaque écran sont générées automatiquement.
 
 ## 6. Utilisation au quotidien par VBM
 
@@ -251,7 +255,7 @@ Limite connue : si Google Agenda est en panne, aucune réservation n'est possibl
 
 ```bash
 npm test          # 102 tests : règles de créneaux, fuseau horaire, validation, réservation, emails, API
-npm run test:e2e  # 12 tests navigateur sur version de production (ordinateur + mobile)
+npm run test:e2e  # 16 tests navigateur sur version de production (ordinateur + mobile)
 ```
 
 Les scénarios couverts incluent : réservation valide, champs manquants ou invalides, date passée, jour fermé ou férié, créneau complet ou bloqué, garages simultanés sur la dernière place (avec et sans verrou partagé), double clic, renvoi après perte de connexion, panne Google (aucune confirmation, aucun email), panne d'email (réservation conservée, renvoi sans doublon), échappement HTML, absence de données personnelles dans les disponibilités, protection du point d'accès cron, affichage mobile sans défilement horizontal.
@@ -263,6 +267,7 @@ Les tests utilisent l'agenda de démonstration et des faux services : ils ne rem
 ```
 src/
   config/booking.ts            jours, horaires, créneaux, capacité
+  config/site.ts               coordonnées de contact et centres
   app/page.tsx                 la page unique
   app/api/availability         disponibilités d'un mois (aucune donnée personnelle)
   app/api/bookings             création d'une réservation
@@ -270,6 +275,8 @@ src/
   app/api/health               services actifs (sans secret)
   app/demo/emails/[id]         aperçu des emails simulés (mode démonstration uniquement)
   components/booking/          formulaire, calendrier, créneaux, confirmation
+  components/sections/         fonctionnement, atelier, savoir-faire, avantages, questions, contact
+  assets/images/               photos de la page
   lib/booking/                 logique de réservation et notifications
   lib/calendar/                client Google Agenda + agenda de démonstration
   lib/email/                   modèles d'emails + envoi Resend
