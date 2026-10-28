@@ -1,5 +1,5 @@
 import Image from "next/image";
-import van from "@/assets/images/livraison-camionnette.webp";
+import van from "@/assets/images/vbm-camionnette-bruxelles.jpg";
 import { SectionHeading } from "./section-heading";
 
 const STEPS = [
@@ -28,37 +28,38 @@ export function ProcessSection() {
       aria-labelledby="fonctionnement-title"
       className="scroll-mt-16 border-y border-hairline bg-surface"
     >
-      <div className="mx-auto grid max-w-[1120px] gap-12 px-5 py-20 sm:px-6 sm:py-28 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:gap-20">
-        <div>
+      <div className="mx-auto max-w-[1120px] px-5 py-20 sm:px-6 sm:py-28">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] lg:items-end">
           <SectionHeading
             id="fonctionnement-title"
             title="Comment se passe un enlèvement."
             subtitle="Vous restez au garage."
           />
-          <ol className="mt-12 border-t border-hairline">
-            {STEPS.map((step, index) => (
-              <li key={step.title} className="grid grid-cols-[2.75rem_minmax(0,1fr)] gap-x-3 border-b border-hairline py-6">
-                <span className="pt-[3px] text-[15px] font-medium text-subtle">{String(index + 1).padStart(2, "0")}</span>
-                <div>
-                  <h3 className="text-[19px] font-semibold tracking-[-0.015em]">{step.title}</h3>
-                  <p className="mt-1.5 max-w-[52ch] text-[16px] leading-relaxed text-muted">{step.text}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
+          <p className="max-w-[46ch] text-[17px] leading-relaxed text-muted lg:justify-self-end">
+            Nous venons chercher les jantes à votre garage, à Bruxelles comme partout en Belgique, et vous les rapportons
+            une fois le travail terminé. Hors de Belgique, sur demande.
+          </p>
         </div>
-        <figure className="self-start lg:sticky lg:top-24">
+
+        <figure className="-mx-5 mt-12 sm:mx-0 sm:mt-14">
           <Image
             src={van}
-            alt="Camionnette d'enlèvement en route"
+            alt="Camionnette VBM Wheels aux couleurs de l'atelier, sur la route à Bruxelles, l'Atomium en arrière-plan"
             placeholder="blur"
-            sizes="(min-width: 1024px) 470px, 100vw"
-            className="aspect-[4/3] w-full object-cover object-[60%_50%] lg:aspect-[4/5]"
+            sizes="(min-width: 1120px) 1072px, 100vw"
+            className="aspect-[16/10] w-full object-cover object-[40%_55%] sm:aspect-[16/9] lg:aspect-[21/9]"
           />
-          <figcaption className="mt-3 text-[13.5px] text-muted">
-            Enlèvement et livraison partout en Belgique, hors de Belgique sur demande.
-          </figcaption>
         </figure>
+
+        <ol className="mt-10 grid border-t border-hairline sm:mt-12 sm:grid-cols-2 sm:gap-x-10 lg:grid-cols-4 lg:border-t-0">
+          {STEPS.map((step, index) => (
+            <li key={step.title} className="border-b border-hairline py-6 sm:border-b-0 lg:border-t lg:pt-7">
+              <span className="text-[15px] font-medium text-subtle">{String(index + 1).padStart(2, "0")}</span>
+              <h3 className="mt-2 text-[19px] font-semibold tracking-[-0.015em]">{step.title}</h3>
+              <p className="mt-1.5 max-w-[46ch] text-[16px] leading-relaxed text-muted">{step.text}</p>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );

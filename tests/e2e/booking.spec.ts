@@ -139,13 +139,19 @@ test("questions open on demand and every image loads", async ({ page }) => {
   await question.click();
   await expect(answer).toBeVisible();
 
-  // Scroll through the page so lazy images load, then check none is broken.
-  for (let y = 0; y < 12; y++) await page.mouse.wheel(0, 900);
-  await page.waitForLoadState("networkidle");
+  // Bring each lazy image into view, wait for it, then check none is broken.
   const broken = await page.evaluate(async () => {
     const images = [...document.images];
-    await Promise.all(images.map((img) => img.decode().catch(() => undefined)));
-    return images.filter((img) => img.naturalWidth === 0).map((img) => img.currentSrc);
+    for (const img of images) {
+      img.scrollIntoView({ block: "center", behavior: "instant" });
+      await new Promise<void>((resolve) => {
+        if (img.complete) return resolve();
+        img.addEventListener("load", () => resolve(), { once: true });
+        img.addEventListener("error", () => resolve(), { once: true });
+        setTimeout(resolve, 5000);
+      });
+    }
+    return images.filter((img) => img.naturalWidth === 0).map((img) => img.currentSrc || img.src);
   });
   expect(broken).toEqual([]);
 });
