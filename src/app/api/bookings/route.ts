@@ -12,11 +12,59 @@ import { CalendarUnavailableError } from "@/lib/calendar/types";
 import { DemoMailer } from "@/lib/email/mailer";
 import { clientIp, isSameOrigin, json, rateLimit, verifyTurnstile } from "@/lib/http";
 import { LockTimeoutError } from "@/lib/lock";
+import { PHOTO_LIMITS } from "@/lib/photo-limits";
+import { readPhotos } from "@/lib/photos";
 import { log } from "@/lib/log";
 import { getServices } from "@/lib/services";
 import { bookingSchema, fieldErrorsFrom } from "@/lib/validation";
 
-const MAX_BODY_BYTES = 16_000;
+const MAX_JSON_BYTES = 16_000;
+const MAX_MULTIPART_BYTES = PHOTO_LIMITS.maxTotalBytes + 64_000;
+
+type Received =
+  | { ok: true; body: Record<string, unknown>; files: File[] }
+  | { ok: false; status: number; error: string; message: string };
+
+const UNREADABLE = { ok: false, status: 400, error: "invalid_json", message: "Données illisibles. Rechargez la page." } as const;
+const TOO_LARGE = { ok: false, status: 413, error: "payload_too_large", message: "Envoi trop volumineux : retirez une ou deux photos puis réessayez." } as const;
+
+/**
+ * Accepts JSON (no photos) or multipart/form-data with a "data" JSON field
+ * and up to five "photos" files.
+ */
+async function readBody(request: Request): Promise<Received> {
+  const type = request.headers.get("content-type") ?? "";
+  const declared = Number(request.headers.get("content-length") ?? "0");
+  let text: string;
+  let files: File[] = [];
+
+  if (type.startsWith("multipart/form-data")) {
+    if (declared > MAX_MULTIPART_BYTES) return TOO_LARGE;
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      return UNREADABLE;
+    }
+    const data = form.get("data");
+    if (typeof data !== "string") return UNREADABLE;
+    text = data;
+    files = form.getAll("photos").filter((value): value is File => typeof value !== "string");
+    if (files.reduce((sum, file) => sum + file.size, 0) > MAX_MULTIPART_BYTES) return TOO_LARGE;
+  } else {
+    text = await request.text();
+  }
+
+  if (text.length > MAX_JSON_BYTES) return { ...TOO_LARGE, message: "Données trop volumineuses." };
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return UNREADABLE;
+  }
+  if (typeof body !== "object" || body === null || Array.isArray(body)) return UNREADABLE;
+  return { ok: true, body: body as Record<string, unknown>, files };
+}
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) {
@@ -32,31 +80,29 @@ export async function POST(request: Request) {
     );
   }
 
-  const raw = await request.text();
-  if (raw.length > MAX_BODY_BYTES) {
-    return json({ error: "payload_too_large", message: "Données trop volumineuses." }, { status: 413 });
-  }
-  let body: unknown;
-  try {
-    body = JSON.parse(raw);
-  } catch {
-    return json({ error: "invalid_json", message: "Données illisibles. Rechargez la page." }, { status: 400 });
-  }
-  if (typeof body !== "object" || body === null || Array.isArray(body)) {
-    return json({ error: "invalid_json", message: "Données illisibles. Rechargez la page." }, { status: 400 });
-  }
+  const received = await readBody(request);
+  if (!received.ok) return json({ error: received.error, message: received.message }, { status: received.status });
+  const { body, files } = received;
+
   // Honeypot field, invisible to people: only bots fill it.
-  if ((body as Record<string, unknown>).website) {
+  if (body.website) {
     return json({ error: "rejected", message: "Requête refusée." }, { status: 400 });
   }
 
   const parsed = bookingSchema.safeParse(body);
-  if (!parsed.success) {
+  const photoCheck = await readPhotos(files);
+  if (!parsed.success || !photoCheck.ok) {
+    const fields = parsed.success ? {} : fieldErrorsFrom(parsed.error);
     return json(
-      { error: "validation", message: "Certains champs sont à corriger.", fields: fieldErrorsFrom(parsed.error) },
+      {
+        error: "validation",
+        message: "Certains champs sont à corriger.",
+        fields: photoCheck.ok ? fields : { ...fields, photos: photoCheck.message },
+      },
       { status: 400 },
     );
   }
+  const photos = photoCheck.photos;
 
   const { env, deps, mailer } = getServices();
   if (env.turnstileSecret && !(await verifyTurnstile(parsed.data.turnstileToken, env.turnstileSecret, ip))) {
@@ -67,7 +113,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await createBooking(parsed.data, deps);
+    const result = await createBooking(parsed.data, deps, { photoCount: photos.length });
     if (!result.ok) {
       invalidateAvailability();
       return json({ error: result.code, message: result.message }, { status: 409 });
@@ -77,7 +123,7 @@ export async function POST(request: Request) {
     invalidateAvailability();
     if (!alreadyExisted) {
       after(async () => {
-        await completeNotifications(booking, garageEmail, deps);
+        await completeNotifications(booking, garageEmail, deps, photos);
         await retryPendingNotifications(deps, { limit: 5 }).catch((error) =>
           log.warn("email.retry_failed", { error: (error as Error).message }),
         );

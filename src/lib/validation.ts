@@ -68,6 +68,12 @@ export const bookingSchema = z.object({
     .optional()
     .transform((v) => (v ?? "").replace(CONTROL_CHARS_EXCEPT_NEWLINE, " ").trim())
     .pipe(z.string().max(500, "Commentaire trop long (500 caractères maximum).")),
+  garageReference: z
+    .string()
+    .max(200, "Référence trop longue (60 caractères maximum).")
+    .optional()
+    .transform((v) => (v ?? "").replace(CONTROL_CHARS, " ").replace(/\s+/g, " ").trim())
+    .pipe(z.string().max(60, "Référence trop longue (60 caractères maximum).")),
   turnstileToken: z.string().max(4096).optional(),
 });
 

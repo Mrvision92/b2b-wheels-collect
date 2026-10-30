@@ -1,5 +1,5 @@
 import { generateKeyPairSync } from "node:crypto";
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -121,7 +121,21 @@ describe("POST /api/bookings", () => {
       demo: { calendar: true, email: true },
     });
     expect(Object.keys(body.booking).sort()).toEqual(
-      ["address", "contactName", "date", "dateLabel", "email", "garageName", "rimCount", "rimsLabel", "reference", "slotLabel"].sort(),
+      [
+        "address",
+        "contactName",
+        "date",
+        "dateLabel",
+        "email",
+        "garageName",
+        "garageReference",
+        "photoCount",
+        "photosLabel",
+        "rimCount",
+        "rimsLabel",
+        "reference",
+        "slotLabel",
+      ].sort(),
     );
     expect(body.booking.dateLabel).toBe("Mardi 3 novembre 2026");
 
@@ -205,6 +219,88 @@ describe("POST /api/bookings", () => {
     expect(body.message).toContain("n'a pas pu être confirmé");
     expect(scheduled).toHaveLength(0);
     expect(fetchMock.mock.calls.every(([url]) => !String(url).includes("resend"))).toBe(true);
+  });
+});
+
+/* Minimal valid image headers: enough for type detection, which is all the server checks. */
+const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01]);
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d]);
+
+function postMultipart(body: unknown, photos: { name: string; type: string; bytes: Buffer }[]) {
+  const form = new FormData();
+  form.append("data", JSON.stringify(body));
+  for (const photo of photos) form.append("photos", new Blob([new Uint8Array(photo.bytes)], { type: photo.type }), photo.name);
+  return postBooking(
+    new Request("http://localhost:3100/api/bookings", {
+      method: "POST",
+      headers: { host: "localhost:3100", origin: "http://localhost:3100" },
+      body: form,
+    }),
+  );
+}
+
+describe("photos and garage reference", () => {
+  it("attaches the photos to VBM's email and records the reference everywhere", async () => {
+    const response = await postMultipart({ ...validBody(), garageReference: "  DOSSIER  2041 " }, [
+      { name: "IMG_0001.JPG", type: "image/jpeg", bytes: JPEG },
+      { name: "capture.png", type: "image/png", bytes: PNG },
+    ]);
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.booking).toMatchObject({ garageReference: "DOSSIER 2041", photoCount: 2, photosLabel: "2 photos" });
+
+    await runScheduled();
+    const { DemoMailer } = await import("@/lib/email/mailer");
+    const mailer = new DemoMailer(path.join(dataDir, "demo-emails"));
+    const vbm = await mailer.read(body.demo.previews.vbm.split("/").pop());
+    const garage = await mailer.read(body.demo.previews.garage.split("/").pop());
+    expect(vbm?.attachments.map((a) => [a.filename, a.contentType])).toEqual([
+      ["photo-1.jpg", "image/jpeg"],
+      ["photo-2.png", "image/png"],
+    ]);
+    expect(vbm?.html).toContain("2 photos jointes à cet email");
+    expect(vbm?.html).toContain("DOSSIER 2041");
+    expect(garage?.attachments).toEqual([]);
+    expect(garage?.text).toContain("Votre référence : DOSSIER 2041");
+    expect(garage?.text).toContain("Photos : 2 photos transmises à l'atelier");
+
+    const agenda = JSON.parse(readFileSync(path.join(dataDir, "demo-calendar.json"), "utf8"));
+    expect(agenda[0].description).toContain("Référence du garage : DOSSIER 2041");
+    expect(agenda[0].description).toContain("Photos : 2 photos");
+  });
+
+  it("still accepts a booking without photos sent as multipart", async () => {
+    const response = await postMultipart(validBody(), []);
+    expect(response.status).toBe(201);
+    expect((await response.json()).booking.photoCount).toBe(0);
+  });
+
+  it("refuses files that are not images, whatever their name or declared type", async () => {
+    const response = await postMultipart(validBody(), [
+      { name: "facture.jpg", type: "image/jpeg", bytes: Buffer.from("%PDF-1.7 not an image") },
+    ]);
+    expect(response.status).toBe(400);
+    expect((await response.json()).fields.photos).toContain("Seules les photos");
+    expect(existsSync(path.join(dataDir, "demo-calendar.json"))).toBe(false);
+  });
+
+  it("refuses more than five photos", async () => {
+    const photos = Array.from({ length: 6 }, (_, i) => ({ name: `p${i}.jpg`, type: "image/jpeg", bytes: JPEG }));
+    const response = await postMultipart(validBody(), photos);
+    expect(response.status).toBe(400);
+    expect((await response.json()).fields.photos).toContain("5 photos maximum");
+  });
+
+  it("refuses an upload that is too heavy before reading it", async () => {
+    const big = Buffer.concat([JPEG, Buffer.alloc(5 * 1024 * 1024)]);
+    const response = await postMultipart(validBody(), [{ name: "big.jpg", type: "image/jpeg", bytes: big }]);
+    expect(response.status).toBe(413);
+  });
+
+  it("rejects a garage reference longer than 60 characters", async () => {
+    const response = await post({ ...validBody(), garageReference: "R".repeat(61) });
+    expect(response.status).toBe(400);
+    expect((await response.json()).fields.garageReference).toContain("60 caractères");
   });
 });
 

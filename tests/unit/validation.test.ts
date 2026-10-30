@@ -90,6 +90,13 @@ describe("booking form validation", () => {
     expect(ok.success && ok.data.garageName).toBe("Garage Dupont");
   });
 
+  it("trims the optional garage reference", () => {
+    const result = bookingSchema.safeParse({ ...valid, garageReference: "  AB-12   34 " });
+    expect(result.success && result.data.garageReference).toBe("AB-12 34");
+    const empty = bookingSchema.safeParse(valid);
+    expect(empty.success && empty.data.garageReference).toBe("");
+  });
+
   it("ignores unknown fields", () => {
     const result = bookingSchema.safeParse({ ...valid, isAdmin: true, status: "collected" });
     expect(result.success).toBe(true);

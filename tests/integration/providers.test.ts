@@ -171,6 +171,31 @@ describe("Resend mailer", () => {
     });
   });
 
+  it("sends attachments base64-encoded with their type", async () => {
+    const calls: Call[] = [];
+    const fn = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return Response.json({ id: "email_456" });
+    }) as unknown as typeof fetch;
+    const mailer = new ResendMailer("re_key", "from@example.be", fn);
+    await mailer.send({
+      ...email,
+      attachments: [{ filename: "photo-1.jpg", contentType: "image/jpeg", content: Buffer.from("jpeg-bytes") }],
+    });
+    expect(JSON.parse(String(calls[0].init.body)).attachments).toEqual([
+      { filename: "photo-1.jpg", content: Buffer.from("jpeg-bytes").toString("base64"), content_type: "image/jpeg" },
+    ]);
+  });
+
+  it("treats an idempotency-key replay with a different payload as already sent", async () => {
+    const fn = (async () =>
+      Response.json({ name: "invalid_idempotent_request", message: "Same key, different payload" }, { status: 409 })) as unknown as typeof fetch;
+    expect(await new ResendMailer("k", "f@e.be", fn).send(email)).toEqual({ id: "already-sent" });
+    const busy = (async () =>
+      Response.json({ name: "concurrent_idempotent_requests", message: "in progress" }, { status: 409 })) as unknown as typeof fetch;
+    await expect(new ResendMailer("k", "f@e.be", busy).send(email)).rejects.toBeInstanceOf(MailerError);
+  });
+
   it.each([
     [429, true],
     [500, true],

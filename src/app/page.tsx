@@ -1,27 +1,17 @@
 import Link from "next/link";
 import { bookingConfig } from "@/config/booking";
-import { siteConfig } from "@/config/site";
 import { BookingForm } from "@/components/booking/booking-form";
 import { Logo } from "@/components/logo";
 import { PrivacyDialog } from "@/components/privacy-dialog";
-import { BenefitsSection } from "@/components/sections/benefits";
-import { ContactSection } from "@/components/sections/contact";
-import { FaqSection } from "@/components/sections/faq";
 import { ProcessSection } from "@/components/sections/process";
-import { ServicesSection } from "@/components/sections/services";
-import { WorkshopSection } from "@/components/sections/workshop";
+import { WhatsappButton } from "@/components/whatsapp-button";
 import { getPublicSettings } from "@/lib/env";
-
-const NAV = [
-  { href: "#fonctionnement", label: "Fonctionnement" },
-  { href: "#savoir-faire", label: "Savoir-faire" },
-  { href: "#questions", label: "Questions" },
-  { href: "#contact", label: "Contact" },
-];
+import { formatPhone, normalizePhone } from "@/lib/phone";
 
 export default function Home() {
   const settings = getPublicSettings();
   const demoParts = [settings.demo.calendar ? "Google Agenda" : null, settings.demo.email ? "les emails" : null].filter(Boolean);
+  const phone = settings.contactPhone ? normalizePhone(settings.contactPhone) : null;
 
   return (
     <>
@@ -38,15 +28,9 @@ export default function Home() {
             <Logo />
           </Link>
           <nav aria-label="Sections" className="flex items-center gap-7 text-[14px]">
-            <ul className="hidden items-center gap-7 lg:flex">
-              {NAV.map((item) => (
-                <li key={item.href}>
-                  <a href={item.href} className="text-graphite transition-colors hover:text-ink">
-                    {item.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
+            <a href="#fonctionnement" className="hidden text-graphite transition-colors hover:text-ink sm:inline">
+              Comment ça marche
+            </a>
             <a
               href="#reservation"
               className="inline-flex h-9 items-center rounded-full bg-ink px-4 font-medium text-white transition-colors hover:bg-black"
@@ -75,26 +59,22 @@ export default function Home() {
         </div>
 
         <ProcessSection />
-        <WorkshopSection />
-        <ServicesSection />
-        <BenefitsSection />
-        <FaqSection />
-        <ContactSection
-          contact={{ whatsapp: settings.contactWhatsapp, phone: settings.contactPhone, email: settings.contactEmail }}
-          centres={siteConfig.centres}
-        />
       </main>
 
-      <footer className="border-t border-hairline">
+      <footer>
         <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 px-5 py-9 text-[13px] text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div className="flex items-center gap-3">
-            <Logo className="scale-90 text-ink" />
-          </div>
-          <p>Le service d&apos;enlèvement de jantes de VBM Wheels Repair.</p>
-          <nav aria-label="Informations" className="flex flex-wrap gap-x-5 gap-y-2">
-            <a href="#contact" className="hover:text-ink">
-              Contact
-            </a>
+          <p>B2B Wheels Collect, le service d&apos;enlèvement de jantes de VBM Wheels Repair.</p>
+          <nav aria-label="Informations" className="flex flex-wrap gap-x-5 gap-y-2 sm:pr-16">
+            {phone ? (
+              <a href={`tel:${phone}`} className="hover:text-ink">
+                {formatPhone(phone)}
+              </a>
+            ) : null}
+            {settings.contactEmail ? (
+              <a href={`mailto:${settings.contactEmail}`} className="hover:text-ink">
+                {settings.contactEmail}
+              </a>
+            ) : null}
             <a href="#confidentialite" className="hover:text-ink">
               Confidentialité
             </a>
@@ -102,6 +82,7 @@ export default function Home() {
         </div>
       </footer>
 
+      <WhatsappButton number={settings.contactWhatsapp} />
       <PrivacyDialog legal={settings.legal} turnstile={!!settings.turnstileSiteKey} />
     </>
   );

@@ -59,6 +59,10 @@ export function Confirmation({ result, onReset }: { result: BookingResponse; onR
     ["Adresse", booking.address],
     ["Jantes", booking.rimsLabel],
   ];
+  if (booking.garageReference) rows.push(["Votre réf.", booking.garageReference]);
+  if (booking.photoCount > 0) {
+    rows.push(["Photos", `${booking.photosLabel} transmise${booking.photoCount > 1 ? "s" : ""}`]);
+  }
 
   return (
     <div className="mx-auto max-w-[34rem] px-5 py-12 sm:px-8 sm:py-16 [animation:rc-fade-up_420ms_var(--ease-out-soft)]">

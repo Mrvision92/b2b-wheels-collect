@@ -39,6 +39,7 @@ export function bookingInput(overrides: Partial<BookingInput> = {}): BookingInpu
     city: "Bruxelles",
     rimCount: 4,
     comment: "",
+    garageReference: "",
     date: "2026-11-03",
     slot: "0900",
     ...overrides,

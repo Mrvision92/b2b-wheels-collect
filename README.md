@@ -6,7 +6,7 @@ Le garage remplit un formulaire, choisit une date et un créneau, et confirme. E
 
 1. l'enlèvement est ajouté à l'agenda Google « B2B Wheels Collect — Enlèvements » de VBM ;
 2. le garage reçoit un email de confirmation ;
-3. VBM reçoit un email avec toutes les informations (itinéraire Google Maps, appel, email).
+3. VBM reçoit un email avec toutes les informations et les photos jointes par le garage (itinéraire Google Maps, appel, email).
 
 Il n'y a ni compte, ni mot de passe, ni tableau de bord : VBM organise les enlèvements directement dans Google Agenda.
 
@@ -169,9 +169,11 @@ weeklySchedule: {
 
 Après une modification : redéployez (un `git push` suffit si l'hébergeur est relié au dépôt).
 
-**Coordonnées et centres** (section Contact, emails) : `src/config/site.ts` contient le numéro WhatsApp, la ligne directe, l'email et les trois centres. Ces valeurs viennent du site VBM et sont à confirmer par VBM. Les variables `NEXT_PUBLIC_CONTACT_PHONE`, `NEXT_PUBLIC_CONTACT_EMAIL` et `NEXT_PUBLIC_CONTACT_WHATSAPP` les remplacent si besoin.
+**Coordonnées** (bouton WhatsApp, pied de page, emails) : `src/config/site.ts` contient le numéro WhatsApp, la ligne directe et l'email. Ces valeurs viennent du site VBM et sont à confirmer par VBM. Les variables `NEXT_PUBLIC_CONTACT_PHONE`, `NEXT_PUBLIC_CONTACT_EMAIL` et `NEXT_PUBLIC_CONTACT_WHATSAPP` les remplacent si besoin.
 
-**Images** : `src/assets/images/`, reprises du site VBM. Pour en changer, remplacez le fichier en gardant le même nom (format WebP ou JPEG) : les tailles adaptées à chaque écran sont générées automatiquement.
+**Image** : la photo de la camionnette est dans `src/assets/images/`. Pour la changer, remplacez le fichier en gardant le même nom : les tailles adaptées à chaque écran sont générées automatiquement.
+
+**Photos jointes par les garages** : jusqu'à 5 photos par réservation, réduites dans le navigateur (1 600 px maximum) puis jointes à l'email envoyé à VBM. Elles ne sont pas conservées sur le site. Le serveur vérifie le contenu réel de chaque fichier (JPEG, PNG, WebP ou HEIC) et le poids total (4 Mo).
 
 ## 6. Utilisation au quotidien par VBM
 
@@ -254,8 +256,8 @@ Limite connue : si Google Agenda est en panne, aucune réservation n'est possibl
 ## 10. Tests
 
 ```bash
-npm test          # 102 tests : règles de créneaux, fuseau horaire, validation, réservation, emails, API
-npm run test:e2e  # 16 tests navigateur sur version de production (ordinateur + mobile)
+npm test          # 115 tests : règles de créneaux, fuseau horaire, validation, réservation, photos, emails, API
+npm run test:e2e  # 18 tests navigateur sur version de production (ordinateur + mobile)
 ```
 
 Les scénarios couverts incluent : réservation valide, champs manquants ou invalides, date passée, jour fermé ou férié, créneau complet ou bloqué, garages simultanés sur la dernière place (avec et sans verrou partagé), double clic, renvoi après perte de connexion, panne Google (aucune confirmation, aucun email), panne d'email (réservation conservée, renvoi sans doublon), échappement HTML, absence de données personnelles dans les disponibilités, protection du point d'accès cron, affichage mobile sans défilement horizontal.
@@ -267,7 +269,7 @@ Les tests utilisent l'agenda de démonstration et des faux services : ils ne rem
 ```
 src/
   config/booking.ts            jours, horaires, créneaux, capacité
-  config/site.ts               coordonnées de contact et centres
+  config/site.ts               coordonnées de contact (WhatsApp, téléphone, email)
   app/page.tsx                 la page unique
   app/api/availability         disponibilités d'un mois (aucune donnée personnelle)
   app/api/bookings             création d'une réservation
@@ -275,8 +277,8 @@ src/
   app/api/health               services actifs (sans secret)
   app/demo/emails/[id]         aperçu des emails simulés (mode démonstration uniquement)
   components/booking/          formulaire, calendrier, créneaux, confirmation
-  components/sections/         fonctionnement, atelier, savoir-faire, avantages, questions, contact
-  assets/images/               photos de la page
+  components/sections/         section « Comment se passe un enlèvement »
+  assets/images/               photo de la camionnette
   lib/booking/                 logique de réservation et notifications
   lib/calendar/                client Google Agenda + agenda de démonstration
   lib/email/                   modèles d'emails + envoi Resend

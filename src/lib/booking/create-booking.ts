@@ -87,7 +87,11 @@ function existingResult(event: CalendarEvent): BookingSuccess | BookingFailure {
  * the agenda; any agenda failure throws CalendarUnavailableError and nothing
  * is confirmed to the garage.
  */
-export async function createBooking(input: BookingInput, deps: BookingDeps): Promise<BookingResult> {
+export async function createBooking(
+  input: BookingInput,
+  deps: BookingDeps,
+  options: { photoCount?: number } = {},
+): Promise<BookingResult> {
   const now = (deps.now ?? (() => new Date()))();
   const { config, calendar } = deps;
 
@@ -116,6 +120,8 @@ export async function createBooking(input: BookingInput, deps: BookingDeps): Pro
     city: input.city,
     rimCount: input.rimCount,
     comment: input.comment,
+    garageReference: input.garageReference,
+    photoCount: options.photoCount ?? 0,
     date: slot.date,
     startTime: slot.startTime,
     endTime: slot.endTime,

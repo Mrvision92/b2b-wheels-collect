@@ -119,27 +119,60 @@ test("the layout fits the screen without horizontal scrolling", async ({ page })
   await expectNoHorizontalScroll(page);
 });
 
-test("the contact section offers WhatsApp, phone and email", async ({ page }) => {
+test("a garage can add its reference and photos", async ({ page }) => {
   await page.goto("/");
-  const contact = page.locator("#contact");
-  await expect(contact.getByRole("link", { name: /Écrire sur WhatsApp/ })).toHaveAttribute("href", /^https:\/\/wa\.me\/\d{8,15}\?text=/);
-  await expect(contact.getByRole("link", { name: /Appeler/ })).toHaveAttribute("href", /^tel:\+32\d{8,9}$/);
-  await expect(contact.getByRole("link", { name: /Écrire un email/ })).toHaveAttribute("href", /^mailto:.+@.+/);
-  await expect(contact.getByRole("link", { name: "Itinéraire" })).toHaveCount(3);
+  await fillGarage(page);
+  await choose(page, page.getByRole("radio", { name: "3 jantes" }));
+  await page.getByLabel("Votre référence").fill("DOSSIER-2041");
 
-  await contact.getByRole("link", { name: "Planifier un enlèvement" }).click();
-  await expect(page.getByLabel("Nom du garage")).toBeInViewport();
+  // A real 200 x 150 PNG, generated in the page so no fixture file is needed.
+  const png = await page.evaluate(async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 200;
+    canvas.height = 150;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#1d1d1f";
+    ctx.fillRect(0, 0, 200, 150);
+    const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), "image/png"));
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+  const file = { mimeType: "image/png", buffer: Buffer.from(png) };
+  await page.locator("#photos").setInputFiles([
+    { name: "jante-avant.png", ...file },
+    { name: "jante-arriere.png", ...file },
+  ]);
+  await expect(page.getByRole("button", { name: /Retirer la photo/ })).toHaveCount(2);
+  await page.getByRole("button", { name: "Retirer la photo 2" }).click();
+  await expect(page.getByRole("button", { name: /Retirer la photo/ })).toHaveCount(1);
+
+  await pickFirstFreeSlot(page);
+  await page.getByRole("button", { name: "Confirmer mon enlèvement" }).click();
+  await expect(page.getByRole("heading", { name: "Votre enlèvement est confirmé." })).toBeVisible();
+  await expect(page.getByText("DOSSIER-2041")).toBeVisible();
+  await expect(page.getByText("1 photo transmise", { exact: true })).toBeVisible();
+
+  // The simulated email to VBM carries the photo as an attachment.
+  const vbm = await page.getByRole("link", { name: "Voir la notification VBM" }).getAttribute("href");
+  await expect.poll(async () => (await page.request.get(vbm!)).status()).toBe(200);
+  const html = await (await page.request.get(vbm!)).text();
+  expect(html).toContain("Pièces jointes (1)");
+  expect(html).toContain("photo-1.jpg");
+  expect(html).toContain("DOSSIER-2041");
 });
 
-test("questions open on demand and every image loads", async ({ page }) => {
+test("the WhatsApp button opens a conversation", async ({ page }) => {
   await page.goto("/");
-  const question = page.getByText("Comment modifier ou annuler un enlèvement ?");
-  const answer = page.getByText(/Répondez simplement à l'email de confirmation/);
-  await expect(answer).toBeHidden();
-  await question.click();
-  await expect(answer).toBeVisible();
+  const button = page.getByRole("link", { name: "Nous écrire sur WhatsApp" });
+  await expect(button).toBeVisible();
+  await expect(button).toHaveAttribute("href", /^https:\/\/wa\.me\/\d{8,15}\?text=/);
+  await expect(button).toHaveAttribute("target", "_blank");
+});
 
-  // Bring each lazy image into view, wait for it, then check none is broken.
+test("the page ends after the pickup steps and its photo loads", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: /Comment se passe un enlèvement/ })).toBeVisible();
+  await expect(page.locator("#savoir-faire, #questions, #contact")).toHaveCount(0);
+
   const broken = await page.evaluate(async () => {
     const images = [...document.images];
     for (const img of images) {

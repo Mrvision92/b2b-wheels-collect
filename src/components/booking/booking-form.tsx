@@ -14,6 +14,8 @@ import {
 import { Confirmation, type BookingResponse } from "./confirmation";
 import { DatePicker } from "./date-picker";
 import { describedBy, Field, SectionTitle } from "./field";
+import { PHOTO_LIMITS } from "@/lib/photo-limits";
+import { PhotoPicker, type PickedPhoto } from "./photo-picker";
 import { RimCount, type RimChoice } from "./rim-count";
 import { SlotPicker } from "./slot-picker";
 import { Turnstile } from "./turnstile";
@@ -30,10 +32,13 @@ type Values = {
   rimChoice: RimChoice;
   rimOther: string;
   comment: string;
+  garageReference: string;
   date: string;
   slot: string;
   website: string;
 };
+
+type FormErrors = FieldErrors & { photos?: string };
 
 const EMPTY: Values = {
   garageName: "",
@@ -46,13 +51,14 @@ const EMPTY: Values = {
   rimChoice: "",
   rimOther: "",
   comment: "",
+  garageReference: "",
   date: "",
   slot: "",
   website: "",
 };
 
 /** Order used to focus the first invalid field (mobile reading order). */
-const FIELD_ORDER: BookingField[] = [
+const FIELD_ORDER: (BookingField | "photos")[] = [
   "garageName",
   "contactName",
   "phone",
@@ -61,15 +67,18 @@ const FIELD_ORDER: BookingField[] = [
   "postalCode",
   "city",
   "rimCount",
+  "garageReference",
   "comment",
+  "photos",
   "date",
   "slot",
 ];
 
-const FOCUS_TARGET: Partial<Record<BookingField, string>> = {
+const FOCUS_TARGET: Partial<Record<BookingField | "photos", string>> = {
   rimCount: '#rimCount, input[name="rimChoice"]',
   date: 'input[name="date"]:checked, input[name="date"]:not(:disabled)',
   slot: 'input[name="slot"]:not(:disabled)',
+  photos: "#photos",
 };
 
 const REQUEST_KEY = "rimcollect.requestId";
@@ -111,7 +120,8 @@ export function BookingForm({ maxRims, turnstileSiteKey }: Props) {
   const loadingMonths = availability.state.status === "loading";
 
   const [values, setValues] = useState<Values>(EMPTY);
-  const [errors, setErrors] = useState<FieldErrors>({});
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<BookingResponse | null>(null);
@@ -146,6 +156,7 @@ export function BookingForm({ maxRims, turnstileSiteKey }: Props) {
       city: values.city,
       rimCount: rimCountValue,
       comment: values.comment,
+      garageReference: values.garageReference,
       date: values.date,
       slot: values.slot,
       turnstileToken: turnstileToken || undefined,
@@ -167,7 +178,7 @@ export function BookingForm({ maxRims, turnstileSiteKey }: Props) {
     setErrors((prev) => ({ ...prev, [field]: validateField(field, value) }));
   }
 
-  function focusFirstError(fieldErrors: FieldErrors) {
+  function focusFirstError(fieldErrors: FormErrors) {
     const first = FIELD_ORDER.find((f) => fieldErrors[f]);
     if (!first || !formRef.current) return;
     const target = formRef.current.querySelector<HTMLElement>(FOCUS_TARGET[first] ?? `#${first}`);
@@ -195,12 +206,19 @@ export function BookingForm({ maxRims, turnstileSiteKey }: Props) {
 
     const body = payload();
     const parsed = bookingSchema.safeParse(body);
-    const fieldErrors = parsed.success ? {} : fieldErrorsFrom(parsed.error);
+    const fieldErrors: FormErrors = parsed.success ? {} : fieldErrorsFrom(parsed.error);
+    if (photos.reduce((sum, p) => sum + p.file.size, 0) > PHOTO_LIMITS.maxTotalBytes) {
+      fieldErrors.photos = "Les photos sont trop lourdes. Retirez-en une ou deux.";
+    }
     if (slotNoLongerFree) fieldErrors.slot = "Ce créneau vient d'être complété. Choisissez-en un autre.";
     if (Object.keys(fieldErrors).length > 0) {
       setErrors(fieldErrors);
       setFormError("Vérifiez les champs signalés.");
       focusFirstError(fieldErrors);
+      return;
+    }
+    if (photos.some((p) => !p.ready)) {
+      setFormError("Les photos sont en cours de préparation. Patientez une seconde puis confirmez à nouveau.");
       return;
     }
     if (turnstileSiteKey && !turnstileToken) {
@@ -212,11 +230,13 @@ export function BookingForm({ maxRims, turnstileSiteKey }: Props) {
     setSubmitting(true);
     setFormError(null);
     try {
+      const form = new FormData();
+      form.append("data", JSON.stringify(body));
+      photos.forEach((photo, index) => form.append("photos", photo.file, `photo-${index + 1}`));
       const response = await fetch("/api/bookings", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(30_000),
+        body: form,
+        signal: AbortSignal.timeout(photos.length ? 60_000 : 30_000),
       });
       const json = await response.json().catch(() => null);
 
@@ -258,6 +278,8 @@ export function BookingForm({ maxRims, turnstileSiteKey }: Props) {
   }
 
   function reset() {
+    photos.forEach((photo) => URL.revokeObjectURL(photo.preview));
+    setPhotos([]);
     setResult(null);
     setValues(EMPTY);
     setErrors({});
@@ -377,6 +399,16 @@ export function BookingForm({ maxRims, turnstileSiteKey }: Props) {
                   onOtherBlur={() => blur("rimCount", values.rimOther)}
                   error={errors.rimCount}
                 />
+                <Field id="garageReference" label="Votre référence" optional error={errors.garageReference}>
+                  <input
+                    {...input("garageReference")}
+                    type="text"
+                    autoComplete="off"
+                    maxLength={60}
+                    placeholder="N° de dossier, immatriculation…"
+                    className="field-input"
+                  />
+                </Field>
                 <Field id="comment" label="Commentaire" optional error={errors.comment}>
                   <textarea
                     {...input("comment")}
@@ -386,6 +418,12 @@ export function BookingForm({ maxRims, turnstileSiteKey }: Props) {
                     className="field-input"
                   />
                 </Field>
+                <PhotoPicker
+                  photos={photos}
+                  onChange={setPhotos}
+                  error={errors.photos}
+                  onError={(message) => setErrors((prev) => ({ ...prev, photos: message }))}
+                />
               </div>
 
               {/* Honeypot: hidden from people and assistive technologies. */}

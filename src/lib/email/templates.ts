@@ -123,7 +123,9 @@ export function renderGarageConfirmation(b: BookingRecord, ctx: EmailContext): E
     ["Nombre de jantes", String(b.rimCount)],
     ["Référence", `<strong style="font-weight:600;">${escapeHtml(b.reference)}</strong>`],
   ];
+  if (b.garageReference) rows.push(["Votre référence", escapeHtml(b.garageReference)]);
   if (b.comment) rows.push(["Commentaire", nl2br(b.comment)]);
+  if (b.photoCount > 0) rows.push(["Photos", `${escapeHtml(d.photos)} transmise${b.photoCount > 1 ? "s" : ""} à l'atelier`]);
 
   const body = `
 <p style="margin:0 0 10px;font-size:14px;line-height:20px;color:${MUTED};">Enlèvement confirmé</p>
@@ -150,7 +152,9 @@ ${detailRows(rows)}
     `Créneau : ${d.slotLabel}`,
     `Nombre de jantes : ${b.rimCount}`,
     `Référence : ${b.reference}`,
+    ...(b.garageReference ? [`Votre référence : ${b.garageReference}`] : []),
     ...(b.comment ? [`Commentaire : ${b.comment}`] : []),
+    ...(b.photoCount > 0 ? [`Photos : ${d.photos} transmise${b.photoCount > 1 ? "s" : ""} à l'atelier`] : []),
     "",
     `Besoin de modifier ou d'annuler ? Répondez simplement à cet email${contact}, en mentionnant votre référence.`,
     "",
@@ -173,8 +177,15 @@ export function renderVbmNotification(
   b: BookingRecord,
   ctx: EmailContext,
   garageEmailStatus: "sent" | "pending" | "failed",
+  photosAttached: boolean,
 ): EmailContent {
   const d = describeBooking(b);
+  const photosText =
+    b.photoCount === 0
+      ? ""
+      : photosAttached
+        ? `${d.photos} jointe${b.photoCount > 1 ? "s" : ""} à cet email`
+        : `${d.photos} envoyée${b.photoCount > 1 ? "s" : ""} par le garage mais non jointe${b.photoCount > 1 ? "s" : ""} à ce renvoi : demandez-les au garage`;
   const subject = `Nouvel enlèvement — ${b.garageName} — ${d.dateLong}`;
   const subjectLine = subject.replace(/[\r\n]+/g, " ");
 
@@ -195,6 +206,8 @@ export function renderVbmNotification(
     ["Créneau", escapeHtml(d.slotLabel)],
     ["Nombre de jantes", `<strong style="font-weight:600;">${b.rimCount}</strong>`],
     ["Commentaire", b.comment ? nl2br(b.comment) : `<span style="color:${MUTED};">Aucun</span>`],
+    ...(b.photoCount > 0 ? ([["Photos", escapeHtml(photosText)]] as [string, string][]) : []),
+    ...(b.garageReference ? ([["Réf. du garage", escapeHtml(b.garageReference)]] as [string, string][]) : []),
     ["Référence", escapeHtml(b.reference)],
   ];
 
@@ -228,6 +241,9 @@ ${detailRows(rows)}
     `Créneau : ${d.slotLabel}`,
     `Nombre de jantes : ${b.rimCount}`,
     `Commentaire : ${b.comment || "aucun"}`,
+    ...(b.photoCount > 0 ? [`Photos : ${photosText}`] : []),
+    ...(b.garageReference ? [`Réf. du garage : ${b.garageReference}`] : []),
+    `Référence : ${b.reference}`,
     "",
     `Itinéraire : ${d.mapsUrl}`,
     ...(b.htmlLink ? [`Google Agenda : ${b.htmlLink}`] : []),

@@ -1,6 +1,6 @@
 import type { BookingConfig } from "@/config/booking";
 import type { CalendarClient, CalendarEvent } from "../calendar/types";
-import { MailerError, type Mailer } from "../email/mailer";
+import { MailerError, type EmailAttachment, type Mailer } from "../email/mailer";
 import { renderGarageConfirmation, renderVbmNotification, type EmailContext } from "../email/templates";
 import { log } from "../log";
 import { fromCalendarEvent, PROP, type BookingRecord } from "./record";
@@ -71,6 +71,7 @@ export async function sendVbmNotification(
   garageStatus: DeliveryStatus,
   deps: NotificationDeps,
   attempts = deps.retryDelaysMs ?? [0, 800, 2500],
+  photos: EmailAttachment[] = [],
 ): Promise<DeliveryStatus> {
   if (deps.vbmRecipients.length === 0) {
     log.warn("email.vbm_recipient_missing", { reference: booking.reference });
@@ -79,9 +80,15 @@ export async function sendVbmNotification(
   return deliver(
     deps,
     () => ({
-      ...renderVbmNotification(booking, deps.emailContext, garageStatus === "sent" ? "sent" : "pending"),
+      ...renderVbmNotification(
+        booking,
+        deps.emailContext,
+        garageStatus === "sent" ? "sent" : "pending",
+        photos.length > 0,
+      ),
       to: deps.vbmRecipients,
       replyTo: booking.email,
+      attachments: photos,
       idempotencyKey: vbmIdempotencyKey(booking.eventId),
     }),
     attempts,
@@ -97,8 +104,9 @@ export async function completeNotifications(
   booking: BookingRecord,
   garageStatus: "sent" | "pending",
   deps: NotificationDeps,
+  photos: EmailAttachment[] = [],
 ) {
-  const vbmStatus = await sendVbmNotification(booking, garageStatus, deps);
+  const vbmStatus = await sendVbmNotification(booking, garageStatus, deps, undefined, photos);
   const props = { [PROP.garageMail]: garageStatus, [PROP.vbmMail]: vbmStatus };
   for (const delay of [0, 1000, 3000]) {
     if (delay) await sleep(delay);

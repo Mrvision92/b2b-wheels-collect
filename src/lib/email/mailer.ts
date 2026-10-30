@@ -2,12 +2,15 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+export type EmailAttachment = { filename: string; contentType: string; content: Buffer };
+
 export type OutgoingEmail = {
   to: string[];
   subject: string;
   html: string;
   text: string;
   replyTo?: string;
+  attachments?: EmailAttachment[];
   /** Same key = same email: the provider will not send it twice (24 h window at Resend). */
   idempotencyKey: string;
 };
@@ -53,20 +56,39 @@ export class ResendMailer implements Mailer {
           html: email.html,
           text: email.text,
           ...(email.replyTo ? { reply_to: email.replyTo } : {}),
+          ...(email.attachments?.length
+            ? {
+                attachments: email.attachments.map((a) => ({
+                  filename: a.filename,
+                  content: a.content.toString("base64"),
+                  content_type: a.contentType,
+                })),
+              }
+            : {}),
         }),
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(email.attachments?.length ? 25_000 : 10_000),
       });
     } catch (error) {
       throw new MailerError(`Resend injoignable : ${(error as Error).message}`, true);
     }
     const json = (await response.json().catch(() => ({}))) as { id?: string; message?: string; name?: string };
     if (response.ok && json.id) return { id: json.id };
+    // Same idempotency key already used with another payload (e.g. a retry
+    // without the photos): Resend has already accepted this email.
+    const errorName = `${json.name ?? ""} ${json.message ?? ""}`.toLowerCase();
+    if (response.status === 409 && errorName.includes("idempotent") && !errorName.includes("concurrent")) {
+      return { id: "already-sent" };
+    }
     const retryable = response.status === 429 || response.status >= 500;
     throw new MailerError(`Resend a refusé l'envoi (${response.status} ${json.name ?? ""} ${json.message ?? ""})`.trim(), retryable);
   }
 }
 
-export type StoredDemoEmail = OutgoingEmail & { id: string; createdAt: string };
+export type StoredDemoEmail = Omit<OutgoingEmail, "attachments"> & {
+  id: string;
+  createdAt: string;
+  attachments: { filename: string; contentType: string; base64: string }[];
+};
 
 /**
  * Demo mode: nothing leaves the machine. Emails are written to disk so they
@@ -94,7 +116,16 @@ export class DemoMailer implements Mailer {
       return { id }; // Already "sent": behave like an idempotent provider.
     } catch {
       await mkdir(this.dir, { recursive: true });
-      const stored: StoredDemoEmail = { ...email, id, createdAt: new Date().toISOString() };
+      const stored: StoredDemoEmail = {
+        ...email,
+        id,
+        createdAt: new Date().toISOString(),
+        attachments: (email.attachments ?? []).map((a) => ({
+          filename: a.filename,
+          contentType: a.contentType,
+          base64: a.content.toString("base64"),
+        })),
+      };
       await writeFile(file, JSON.stringify(stored, null, 2));
       return { id };
     }

@@ -28,6 +28,10 @@ export type BookingRecord = {
   city: string;
   rimCount: number;
   comment: string;
+  /** The garage's own reference (file number, plate…), optional. */
+  garageReference: string;
+  /** Photos sent with the booking (attached to VBM's email, not stored). */
+  photoCount: number;
   date: string;
   startTime: string;
   endTime: string;
@@ -52,6 +56,8 @@ export const PROP = {
   city: "rcCity",
   rims: "rcRims",
   comment: "rcNote",
+  garageReference: "rcGRef",
+  photos: "rcPhotos",
   mode: "rcMode",
   garageMail: "rcMailG",
   vbmMail: "rcMailV",
@@ -81,6 +87,7 @@ export function describeBooking(b: BookingRecord) {
     phone: formatPhone(b.phone),
     rims: rimsLabel(b.rimCount),
     mapsUrl: mapsUrl(b),
+    photos: b.photoCount > 0 ? `${b.photoCount} photo${b.photoCount > 1 ? "s" : ""}` : "",
   };
 }
 
@@ -101,7 +108,9 @@ export function eventDescription(b: BookingRecord): string {
     `Adresse : ${d.address}`,
     `Nombre de jantes : ${b.rimCount}`,
   ];
+  if (b.garageReference) lines.push(`Référence du garage : ${b.garageReference}`);
   if (b.comment) lines.push(`Commentaire : ${b.comment}`);
+  if (b.photoCount > 0) lines.push(`Photos : ${d.photos}, jointes à l'email de notification`);
   lines.push("", `Itinéraire : ${d.mapsUrl}`, "", "Réservé en ligne sur B2B Wheels Collect.");
   return lines.join("\n");
 }
@@ -127,6 +136,8 @@ export function toCalendarEvent(b: BookingRecord, requestFingerprint: string): N
       [PROP.city]: b.city,
       [PROP.rims]: String(b.rimCount),
       [PROP.comment]: b.comment,
+      [PROP.garageReference]: b.garageReference,
+      [PROP.photos]: String(b.photoCount),
       [PROP.mode]: b.mode,
       [PROP.garageMail]: "pending",
       [PROP.vbmMail]: "pending",
@@ -156,6 +167,8 @@ export function fromCalendarEvent(event: CalendarEvent): BookingRecord | null {
     city: p[PROP.city] ?? "",
     rimCount: Number(p[PROP.rims] ?? "0"),
     comment: p[PROP.comment] ?? "",
+    garageReference: p[PROP.garageReference] ?? "",
+    photoCount: Number(p[PROP.photos] ?? "0") || 0,
     date: zonedDateString(event.start),
     startTime: zonedTimeString(event.start),
     endTime: zonedTimeString(event.end),
@@ -180,6 +193,9 @@ export function publicSummary(b: BookingRecord) {
     slotLabel: d.slotLabel,
     rimCount: b.rimCount,
     rimsLabel: d.rims,
+    garageReference: b.garageReference,
+    photoCount: b.photoCount,
+    photosLabel: d.photos,
   };
 }
 

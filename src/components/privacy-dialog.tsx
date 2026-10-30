@@ -80,7 +80,8 @@ export function PrivacyDialog({ legal, turnstile }: { legal: PublicSettings["leg
         <Section title="Données collectées">
           <p>
             Nom du garage, nom et prénom de la personne de contact, téléphone, adresse email, adresse d&apos;enlèvement, nombre de
-            jantes, date et créneau choisis, et le commentaire éventuel. Aucune autre donnée n&apos;est demandée.
+            jantes, date et créneau choisis, ainsi que la référence, le commentaire et les photos éventuels. Aucune autre donnée
+            n&apos;est demandée. Les photos sont transmises par email à l&apos;atelier et ne sont pas conservées sur le site.
           </p>
         </Section>
 

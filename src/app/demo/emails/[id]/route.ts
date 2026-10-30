@@ -29,12 +29,27 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   dl{margin:10px 0 0;display:grid;grid-template-columns:auto 1fr;gap:2px 12px;color:#d2d2d0}
   dd{margin:0;color:#fff;overflow-wrap:anywhere}
   iframe{display:block;width:100%;height:calc(100vh - 120px);border:0;background:#fff}
+  .files{padding:14px 20px;background:#fff;border-bottom:1px solid #e3e3e1}
+  .files div{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px}
+  .files figure{margin:0;width:132px}
+  .files img{width:132px;height:100px;object-fit:cover;display:block;border:1px solid #e3e3e1}
+  .files figcaption{font-size:12px;color:#6e6e73;margin-top:4px}
 </style></head>
 <body>
 <header>
   <strong>Email simulé — mode démonstration, aucun envoi réel</strong>
   <dl><dt>À</dt><dd>${escapeHtml(email.to.join(", "))}</dd><dt>Objet</dt><dd>${escapeHtml(email.subject)}</dd></dl>
 </header>
+${
+  email.attachments?.length
+    ? `<section class="files"><strong>Pièces jointes (${email.attachments.length})</strong><div>${email.attachments
+        .map(
+          (a) =>
+            `<figure><img src="data:${escapeHtml(a.contentType)};base64,${a.base64}" alt="${escapeHtml(a.filename)}"><figcaption>${escapeHtml(a.filename)} · ${Math.round((a.base64.length * 3) / 4 / 1024)} Ko</figcaption></figure>`,
+        )
+        .join("")}</div></section>`
+    : ""
+}
 <iframe sandbox="allow-popups allow-popups-to-escape-sandbox" title="Aperçu de l'email" srcdoc="${escapeHtml(email.html)}"></iframe>
 </body></html>`;
 
