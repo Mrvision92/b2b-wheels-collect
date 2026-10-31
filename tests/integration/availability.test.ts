@@ -42,6 +42,18 @@ describe("slot occupancy rules", () => {
     const blocked = [event({ summary: "Indisponible", start: slot.start, end: slot.end })];
     expect(evaluateSlot(slot, blocked, 10).available).toBe(false);
   });
+
+  it("never treats a site booking as a block, whatever the garage is called", async () => {
+    const { deps, calendar } = makeDeps();
+    const first = await createBooking(bookingInput({ garageName: "Garage Complet" }), deps);
+    expect(first.ok).toBe(true);
+    const [booked] = await calendar.listEvents({ timeMin: slot.start, timeMax: slot.end });
+    expect(booked.summary).toContain("Garage Complet");
+    expect(isBlockingEvent(booked)).toBe(false);
+
+    const second = await createBooking(bookingInput({ email: "atelier@autre-garage.be", street: "Rue Neuve 8" }), deps);
+    expect(second.ok).toBe(true);
+  });
 });
 
 describe("month availability sent to the browser", () => {

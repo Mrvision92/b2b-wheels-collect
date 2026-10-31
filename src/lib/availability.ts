@@ -1,5 +1,6 @@
 import type { BookingConfig } from "@/config/booking";
 import type { CalendarClient, CalendarEvent } from "./calendar/types";
+import { isBookingEvent } from "./booking/record";
 import { bookingWindow, isWithinBookingWindow, slotsForDate } from "./schedule";
 import { addDays, daysInMonth, monthOf, zonedTimeToUtc } from "./time";
 
@@ -16,7 +17,9 @@ function normalize(text: string): string {
     .toLowerCase();
 }
 
+/** Bookings made on the site never close a slot, even for a garage named "Auto Complet". */
 export function isBlockingEvent(event: CalendarEvent): boolean {
+  if (isBookingEvent(event)) return false;
   return event.allDay || BLOCKING_WORDS.test(normalize(event.summary));
 }
 
