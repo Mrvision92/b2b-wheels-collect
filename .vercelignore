@@ -7,3 +7,5 @@
 node_modules
 test-results
 playwright-report
+php
+playwright.php.config.ts

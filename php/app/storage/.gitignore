@@ -1,0 +1,4 @@
+# Journaux, cache et emails de démonstration : jamais versionnés.
+*
+!.gitignore
+!.htaccess

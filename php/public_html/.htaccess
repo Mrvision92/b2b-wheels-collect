@@ -1,0 +1,37 @@
+# B2B Wheels Collect — réglages Apache / LiteSpeed (Hostinger)
+
+Options -Indexes
+DirectoryIndex index.php
+
+# HTTPS obligatoire (Hostinger propose aussi « Forcer HTTPS » dans hPanel).
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:\d+)?$
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# Fichiers cachés (.user.ini…) et fichiers internes (_bootstrap.php) : jamais servis.
+<FilesMatch "^[._]">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "DENY"
+</IfModule>
+
+# Mise en cache des fichiers statiques (le site ajoute ?v=… quand ils changent).
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType text/javascript "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 month"
+  ExpiresByType image/svg+xml "access plus 1 month"
+  ExpiresByType font/woff2 "access plus 1 year"
+</IfModule>
+
+AddType font/woff2 .woff2

@@ -10,6 +10,8 @@ Le garage remplit un formulaire, choisit une date et un créneau, et confirme. E
 
 Il n'y a ni compte, ni mot de passe, ni tableau de bord : VBM organise les enlèvements directement dans Google Agenda.
 
+> **Version PHP / MySQL** : le même site existe aussi en HTML, CSS, JavaScript, PHP et MySQL, sans Node.js, pour un hébergement web classique (Hostinger mutualisé). Il est dans le dossier [`php/`](php/), avec son guide d'installation : [php/README.md](php/README.md).
+
 ---
 
 ## Sommaire

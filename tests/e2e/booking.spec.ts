@@ -71,7 +71,7 @@ test("missing information is flagged before anything is sent", async ({ page }) 
   await page.goto("/");
   let posted = false;
   page.on("request", (r) => {
-    if (r.url().endsWith("/api/bookings")) posted = true;
+    if (/\/api\/bookings(\.php)?$/.test(r.url())) posted = true;
   });
   await page.getByRole("button", { name: "Confirmer mon enlèvement" }).click();
   await expect(page.getByText("Indiquez le nom du garage.")).toBeVisible();
@@ -90,7 +90,7 @@ test("a double click creates a single booking", async ({ page }) => {
   await pickFirstFreeSlot(page);
   let posts = 0;
   page.on("request", (r) => {
-    if (r.url().endsWith("/api/bookings") && r.method() === "POST") posts++;
+    if (/\/api\/bookings(\.php)?$/.test(r.url()) && r.method() === "POST") posts++;
   });
   await page.getByRole("button", { name: "Confirmer mon enlèvement" }).dblclick();
   await expect(page.getByRole("heading", { name: "Votre enlèvement est confirmé." })).toBeVisible();
