@@ -9,20 +9,17 @@ use Bwc\Calendar\CalendarClient;
 /**
  * Occupation des créneaux.
  *
- * Chaque réservation confirmée dans MySQL prend une place. Quand Google
- * Agenda est connecté, c'est le planning de VBM qui fait foi pour ce qui y a
- * été changé : un rendez-vous ajouté à la main prend une place, un événement
- * « Fermé » ou « Bloqué » (ou sur toute la journée) ferme le créneau, une
- * réservation déplacée suit son événement et une réservation dont
- * l'événement a été supprimé libère sa place.
+ * La base MySQL fait foi : chaque réservation en attente, à enlever ou
+ * enlevée prend une place. Quand Google Agenda est connecté, ce que VBM y
+ * ajoute lui-même compte aussi : un rendez-vous pris à la main occupe une
+ * place, un événement « Fermé », « Bloqué »… (ou sur toute la journée) ferme
+ * le créneau. Les événements créés par le site, eux, sont ignorés : ils ne
+ * sont qu'une copie des réservations.
  */
 final class Availability
 {
     /** Titres qui ferment un créneau, sans tenir compte des accents ni des majuscules. */
     private const BLOCKING_WORDS = '/\b(bloque|bloquee|ferme|fermee|fermeture|indisponible|complet|conge|conges)\b/';
-
-    /** Marge de sécurité entre la lecture de l'agenda et la copie d'une réservation. */
-    private const SYNC_MARGIN_SECONDS = 2.0;
 
     private static function normalize(string $text): string
     {
@@ -54,43 +51,26 @@ final class Availability
 
     /**
      * @param array<string, mixed> $slot
-     * @param list<array<string, mixed>> $rows Réservations MySQL qui chevauchent le créneau (ou plus large)
+     * @param list<array<string, mixed>> $rows Réservations MySQL actives qui chevauchent le créneau (ou plus large)
      * @param list<array<string, mixed>>|null $events Événements Google, null si l'agenda n'est pas connecté
-     * @param float|null $fetchedAt Moment où la lecture de l'agenda a commencé
      * @return array{blocked: bool, taken: int, available: bool}
      */
-    public static function evaluate(array $slot, array $rows, ?array $events, ?float $fetchedAt, int $capacity): array
+    public static function evaluate(array $slot, array $rows, ?array $events, int $capacity): array
     {
         $blocked = false;
         $taken = 0;
-        $inCalendar = [];
-
         foreach ($events ?? [] as $event) {
-            if (!self::isActive($event) || $event['start'] >= $slot['end'] || $event['end'] <= $slot['start']) {
+            if (self::isOwnEvent($event) || !self::isActive($event) || $event['start'] >= $slot['end'] || $event['end'] <= $slot['start']) {
                 continue;
             }
-            if (self::isBlocking($event)) {
-                $blocked = true;
-            }
-            if (self::isOwnEvent($event)) {
-                $inCalendar[$event['props']['bwcRef']] = true;
-            }
+            $blocked = $blocked || self::isBlocking($event);
             $taken++;
         }
-
         foreach ($rows as $row) {
-            if ($row['start_ts'] >= $slot['end'] || $row['end_ts'] <= $slot['start'] || isset($inCalendar[$row['reference']])) {
-                continue;
+            if ($row['start_ts'] < $slot['end'] && $row['end_ts'] > $slot['start'] && in_array($row['status'], BookingStore::ACTIVE, true)) {
+                $taken++;
             }
-            // Copiée dans l'agenda avant sa lecture, mais absente de ce créneau :
-            // VBM a déplacé ou supprimé l'événement.
-            if ($events !== null && $row['google_status'] === 'synced' && $row['synced_ts'] !== null
-                && $row['synced_ts'] < $fetchedAt - self::SYNC_MARGIN_SECONDS) {
-                continue;
-            }
-            $taken++;
         }
-
         return ['blocked' => $blocked, 'taken' => $taken, 'available' => !$blocked && $taken < $capacity];
     }
 
@@ -138,11 +118,7 @@ final class Availability
         $timeMin = (int) Time::zonedToUtc($from, '00:00');
         $timeMax = (int) Time::zonedToUtc(Time::addDays($to, 1), '00:00');
         $rows = $store->activeBetween($timeMin, $timeMax);
-        $events = null;
-        $fetchedAt = null;
-        if ($calendar !== null) {
-            [$events, $fetchedAt] = EventCache::list($calendar, $timeMin, $timeMax);
-        }
+        $events = $calendar !== null ? EventCache::list($calendar, $timeMin, $timeMax) : null;
 
         $capacity = (int) $config['capacity_per_slot'];
         foreach ($candidates as $date => $slots) {
@@ -151,10 +127,39 @@ final class Availability
                 'slots' => array_map(static fn (array $slot): array => [
                     'key' => $slot['key'],
                     'label' => $slot['label'],
-                    'available' => self::evaluate($slot, $rows, $events, $fetchedAt, $capacity)['available'],
+                    'available' => self::evaluate($slot, $rows, $events, $capacity)['available'],
                 ], $slots),
             ];
         }
         return $base;
+    }
+
+    /**
+     * Créneaux d'un jour pour l'administration : sans délai de prévenance ni
+     * limite de réservation à l'avance, mais avec les mêmes places que le site.
+     *
+     * @param array<string, mixed> $config
+     * @return list<array{key: string, label: string, available: bool, remaining: int, past: bool}>
+     */
+    public static function daySlotsForAdmin(string $date, array $config, BookingStore $store, ?CalendarClient $calendar, int $now, ?int $excludeId = null): array
+    {
+        $slots = Schedule::slotsForDate($date, $config);
+        if ($slots === []) {
+            return [];
+        }
+        $rows = $store->activeBetween($slots[0]['start'], end($slots)['end'], $excludeId);
+        $events = $calendar !== null ? $calendar->listEvents($slots[0]['start'], end($slots)['end']) : null;
+        $capacity = (int) $config['capacity_per_slot'];
+        return array_map(static function (array $slot) use ($rows, $events, $capacity, $now): array {
+            $result = self::evaluate($slot, $rows, $events, $capacity);
+            $past = $slot['end'] <= $now;
+            return [
+                'key' => $slot['key'],
+                'label' => $slot['startTime'] . ' – ' . $slot['endTime'],
+                'available' => $result['available'] && !$past,
+                'remaining' => $result['blocked'] ? 0 : max(0, $capacity - $result['taken']),
+                'past' => $past,
+            ];
+        }, $slots);
     }
 }

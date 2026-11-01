@@ -225,3 +225,128 @@ test('serveur SMTP injoignable : erreur passagère, nouvel essai plus tard', fun
         eq($error->retryable, true);
     }
 });
+
+/* Administration ---------------------------------------------------------- */
+
+/**
+ * Requête avec conservation des cookies (session d'administration).
+ *
+ * @return array{status: int, headers: string, body: string}
+ */
+function browse(string $method, string $path, string $jar, array $options = []): array
+{
+    $curl = curl_init(server() . $path);
+    curl_setopt_array($curl, [
+        CURLOPT_CUSTOMREQUEST => $method, CURLOPT_RETURNTRANSFER => true, CURLOPT_HEADER => true, CURLOPT_TIMEOUT => 30,
+        CURLOPT_COOKIEJAR => $jar, CURLOPT_COOKIEFILE => $jar, CURLOPT_HTTPHEADER => $options['headers'] ?? [],
+    ]);
+    if (isset($options['body'])) {
+        curl_setopt($curl, CURLOPT_POSTFIELDS, $options['body']);
+    }
+    $raw = (string) curl_exec($curl);
+    $size = (int) curl_getinfo($curl, CURLINFO_HEADER_SIZE);
+    return ['status' => (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE), 'headers' => substr($raw, 0, $size), 'body' => substr($raw, $size)];
+}
+
+function csrfFrom(string $html): string
+{
+    preg_match('/name="csrf(?:-token)?" (?:value|content)="([^"]+)"/', $html, $m);
+    return $m[1] ?? '';
+}
+
+/** Connexion ; rend le fichier de cookies et la réponse. */
+function login(string $email, string $password): array
+{
+    $jar = (string) tempnam(sys_get_temp_dir(), 'bwc-jar');
+    $page = browse('GET', '/admin/connexion.php', $jar);
+    $response = browse('POST', '/admin/connexion.php', $jar, [
+        'body' => http_build_query(['csrf' => csrfFrom($page['body']), 'email' => $email, 'password' => $password]),
+        'headers' => ['Content-Type: application/x-www-form-urlencoded'],
+    ]);
+    return [$jar, $response];
+}
+
+function createAdmin(string $email = 'vbm@test.local', string $password = 'Mot-de-passe-solide-1'): int
+{
+    return (new Bwc\Admin\AdminStore(Bwc\Database::pdo()))->create($email, 'Équipe VBM', $password);
+}
+
+test('administration : rien n\'est accessible sans connexion', function () {
+    resetDatabase();
+    $jar = (string) tempnam(sys_get_temp_dir(), 'bwc-jar');
+    $page = browse('GET', '/admin/', $jar);
+    eq($page['status'], 302);
+    contains($page['headers'], 'Location: connexion.php?retour=%2Fadmin%2F');
+    eq(browse('GET', '/admin/enlevements.php', $jar)['status'], 302);
+    eq(browse('GET', '/admin/export.php', $jar)['status'], 302);
+    eq(browse('GET', '/admin/api.php?action=booking&id=1', $jar)['status'], 401);
+    eq(browse('POST', '/admin/api.php?action=complete', $jar, ['body' => '{"id":1}'])['status'], 401);
+    eq(http('GET', '/admin/installation.php')['status'], 404, 'page d\'installation fermée sans clé');
+    contains(browse('GET', '/admin/connexion.php', $jar)['headers'], 'X-Robots-Tag: noindex');
+});
+
+test('connexion : mauvais mot de passe refusé, cookie de session sécurisé, limite de tentatives', function () {
+    resetDatabase();
+    createAdmin();
+    [, $wrong] = login('vbm@test.local', 'pas-le-bon-mot-de-passe');
+    eq($wrong['status'], 200);
+    contains($wrong['body'], 'Email ou mot de passe incorrect.');
+    [$jar, $ok] = login('VBM@test.local', 'Mot-de-passe-solide-1');
+    eq($ok['status'], 302);
+    contains($ok['headers'], 'Location: index.php');
+    ok(preg_match('/Set-Cookie: bwc_admin=[^;]+;.*path=\/admin\/;.*HttpOnly; SameSite=Lax/i', $ok['headers']) === 1, 'cookie HttpOnly, SameSite, limité à /admin/');
+    eq(browse('GET', '/admin/', $jar)['status'], 200);
+
+    for ($i = 0; $i < 8; $i++) {
+        login('autre@test.local', 'faux-mot-de-passe');
+    }
+    [, $blocked] = login('autre@test.local', 'faux-mot-de-passe');
+    contains($blocked['body'], 'Trop de tentatives');
+});
+
+test('administration : réservation du site visible, jeton CSRF obligatoire, « Marquer enlevé » une seule fois', function () {
+    resetDatabase();
+    $adminId = createAdmin();
+    [$date, $slot] = firstFreeSlot();
+    $public = http('POST', '/api/bookings.php', ['form' => formFor(bookingInput(['date' => $date, 'slot' => $slot, 'phone' => '0470 12 34 56', 'rimCount' => '4', 'garageName' => 'Garage Visible']))]);
+    eq($public['status'], 201);
+    $reference = $public['json']['booking']['reference'];
+
+    [$jar] = login('vbm@test.local', 'Mot-de-passe-solide-1');
+    $list = browse('GET', '/admin/enlevements.php?q=' . rawurlencode($reference), $jar);
+    contains($list['body'], 'Garage Visible');
+    $csrf = csrfFrom($list['body']);
+    ok($csrf !== '', 'jeton CSRF présent dans la page');
+    $id = (int) Bwc\Database::pdo()->query("SELECT id FROM bwc_bookings WHERE reference = '$reference'")->fetchColumn();
+
+    $details = json_decode(browse('GET', "/admin/api.php?action=booking&id=$id", $jar)['body'], true);
+    contains($details['html'], $reference);
+    eq(browse('POST', '/admin/api.php?action=complete', $jar, ['body' => json_encode(['id' => $id]), 'headers' => ['Content-Type: application/json']])['status'], 403, 'sans jeton CSRF');
+    eq(browse('POST', '/admin/api.php?action=complete', $jar, ['body' => json_encode(['id' => $id]), 'headers' => ['Content-Type: application/json', 'X-CSRF-Token: faux']])['status'], 403, 'mauvais jeton');
+
+    $headers = ['Content-Type: application/json', "X-CSRF-Token: $csrf"];
+    $first = json_decode(browse('POST', '/admin/api.php?action=complete', $jar, ['body' => json_encode(['id' => $id]), 'headers' => $headers])['body'], true);
+    $second = json_decode(browse('POST', '/admin/api.php?action=complete', $jar, ['body' => json_encode(['id' => $id]), 'headers' => $headers])['body'], true);
+    contains($first['message'], 'Email envoyé au garage');
+    contains($second['message'], 'déjà marqué');
+    eq((int) Bwc\Database::pdo()->query("SELECT COUNT(*) FROM bwc_notifications WHERE kind = 'pickup_completed'")->fetchColumn(), 1);
+    eq((int) Bwc\Database::pdo()->query("SELECT completed_by FROM bwc_bookings WHERE id = $id")->fetchColumn(), $adminId);
+
+    $csv = browse('GET', '/admin/export.php?tab=enleves', $jar);
+    ok(str_starts_with($csv['body'], "\xEF\xBB\xBFRéférence;Statut;"), 'en-tête CSV pour Excel');
+    contains($csv['body'], "$reference;Enlevé;");
+});
+
+test('administration : compte désactivé ou mot de passe changé = session fermée', function () {
+    resetDatabase();
+    $adminId = createAdmin();
+    [$jar] = login('vbm@test.local', 'Mot-de-passe-solide-1');
+    eq(browse('GET', '/admin/', $jar)['status'], 200);
+    sleep(1);
+    (new Bwc\Admin\AdminStore(Bwc\Database::pdo()))->setPassword($adminId, 'Nouveau-mot-de-passe-2');
+    eq(browse('GET', '/admin/', $jar)['status'], 302, 'mot de passe changé ailleurs');
+    [$jar] = login('vbm@test.local', 'Nouveau-mot-de-passe-2');
+    eq(browse('GET', '/admin/', $jar)['status'], 200);
+    (new Bwc\Admin\AdminStore(Bwc\Database::pdo()))->setActive($adminId, false);
+    eq(browse('GET', '/admin/', $jar)['status'], 302, 'compte désactivé');
+});

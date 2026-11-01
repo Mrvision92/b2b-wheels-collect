@@ -29,4 +29,19 @@ interface CalendarClient
      * @throws CalendarUnavailable
      */
     public function insertEvent(array $event): ?array;
+
+    /**
+     * Met à jour un événement existant (et le rétablit s'il avait été supprimé).
+     *
+     * @param array<string, mixed> $event champs à modifier, au format Google
+     * @throws CalendarUnavailable
+     */
+    public function patchEvent(string $id, array $event): ?array;
+
+    /**
+     * Supprime l'événement (sans erreur s'il n'existe plus).
+     *
+     * @throws CalendarUnavailable
+     */
+    public function deleteEvent(string $id): void;
 }

@@ -125,4 +125,15 @@ final class GoogleCalendar implements CalendarClient
         $response = $this->request('POST', '/events', ['sendUpdates' => 'none'], $event, [409]);
         return $response['status'] === 409 ? null : self::fromJson($response['json']);
     }
+
+    public function patchEvent(string $id, array $event): ?array
+    {
+        $response = $this->request('PATCH', '/events/' . rawurlencode($id), ['sendUpdates' => 'none'], $event, [404, 410]);
+        return $response['status'] === 200 ? self::fromJson($response['json']) : null;
+    }
+
+    public function deleteEvent(string $id): void
+    {
+        $this->request('DELETE', '/events/' . rawurlencode($id), ['sendUpdates' => 'none'], null, [404, 410]);
+    }
 }

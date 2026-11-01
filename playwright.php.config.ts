@@ -2,14 +2,16 @@ import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Mêmes tests navigateur que la version Next.js, joués contre la version
- * PHP / MySQL (dossier php/). Nécessite la base MySQL de test (voir php/README.md).
+ * Tests navigateur de la version PHP / MySQL (dossier php/) : ceux du site
+ * public, communs avec la version Next.js, et ceux de l'administration.
+ * Nécessite la base MySQL de test (voir php/README.md).
  */
 const PORT = 3301;
 const root = process.cwd();
 
 export default defineConfig({
-  testDir: "tests/e2e",
+  testDir: "tests",
+  testMatch: /(e2e|e2e-admin)\/.*\.spec\.ts$/,
   fullyParallel: false,
   workers: 1,
   retries: 0,

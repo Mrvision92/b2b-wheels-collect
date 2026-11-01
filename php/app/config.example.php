@@ -64,6 +64,11 @@ return [
         'oauth_refresh_token' => '',
     ],
 
+    // Premier accès à l'administration sans SSH : remplissez une clé longue,
+    // ouvrez https://votre-domaine.be/admin/installation.php, créez le compte,
+    // puis videz cette valeur. Avec SSH : php app/tools/admin.php create …
+    'admin_setup_key' => '',
+
     // Cloudflare Turnstile (anti-spam facultatif, widget en mode « Managed »).
     'turnstile' => [
         'site_key' => '',

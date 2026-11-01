@@ -14,18 +14,18 @@ final class EventCache
 {
     private const TTL_SECONDS = 20;
 
-    /** @return array{0: list<array<string, mixed>>, 1: float} [événements, moment de la lecture] */
+    /** @return list<array<string, mixed>> événements qui chevauchent la période */
     public static function list(CalendarClient $calendar, int $timeMin, int $timeMax): array
     {
         $file = Config::get()->storage('cache') . '/events-' . md5("$timeMin-$timeMax") . '.json';
         $cached = json_decode((string) @file_get_contents($file), true);
         if (is_array($cached) && ($cached['fetchedAt'] ?? 0) > microtime(true) - self::TTL_SECONDS) {
-            return [$cached['events'], (float) $cached['fetchedAt']];
+            return $cached['events'];
         }
         $fetchedAt = microtime(true);
         $events = $calendar->listEvents($timeMin, $timeMax);
         @file_put_contents($file, json_encode(['fetchedAt' => $fetchedAt, 'events' => $events]), LOCK_EX);
-        return [$events, $fetchedAt];
+        return $events;
     }
 
     public static function clear(): void

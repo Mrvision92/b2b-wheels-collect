@@ -18,14 +18,11 @@ if (realpath($file) !== realpath(__DIR__ . '/config.test.php') || !Config::get()
 }
 
 $pdo = Database::pdo();
-foreach (array_filter(array_map('trim', explode(';', (string) file_get_contents(dirname(__DIR__) . '/database/schema.sql')))) as $statement) {
-    if (preg_match('/^(CREATE|SET)/m', $statement) === 1) {
-        $pdo->exec($statement);
-    }
-}
-foreach (['bwc_bookings', 'bwc_booking_days', 'bwc_rate_limits'] as $table) {
-    $pdo->exec("TRUNCATE TABLE $table");
-}
+Bwc\Schema::dropAll($pdo);
+Bwc\Schema::install($pdo);
+// Compte de test des tests navigateur (base de test uniquement).
+$pdo->prepare('INSERT INTO bwc_admins (email, name, password_hash, created_at, password_changed_at) VALUES (?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())')
+    ->execute(['admin@test.local', 'Équipe VBM', password_hash('Test-admin-2026!', PASSWORD_DEFAULT)]);
 foreach (glob(Config::get()->storage('demo-emails') . '/*.json') ?: [] as $email) {
     unlink($email);
 }

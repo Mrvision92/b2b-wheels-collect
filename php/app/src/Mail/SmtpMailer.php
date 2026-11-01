@@ -23,7 +23,7 @@ final class SmtpMailer implements Mailer
         return 'smtp';
     }
 
-    public function send(array $email): void
+    public function send(array $email): string
     {
         $message = Mime::build($email, $this->from);
         [, $fromAddress] = Mime::parseAddress($this->from);
@@ -37,8 +37,9 @@ final class SmtpMailer implements Mailer
             $this->command('DATA', [354]);
             // Les lignes commençant par un point sont doublées (RFC 5321).
             $data = preg_replace('/^\./m', '..', $message);
-            $this->command(rtrim($data, "\r\n") . "\r\n.", [250], 'message');
+            $accepted = $this->command(rtrim($data, "\r\n") . "\r\n.", [250], 'message');
             @fwrite($this->socket, "QUIT\r\n");
+            return substr(trim((string) preg_replace('/\s+/', ' ', $accepted)), 0, 250);
         } finally {
             if ($this->socket) {
                 fclose($this->socket);

@@ -90,7 +90,7 @@ final class Http
     {
         $pdo = Database::pdo();
         $now = time();
-        $key = substr($bucket, 0, 60) . ':' . substr(hash('sha256', Config::get()->secret() . $bucket), 0, 16);
+        $key = self::bucketKey($bucket);
         $pdo->prepare(
             'INSERT INTO bwc_rate_limits (bucket, hits, reset_at) VALUES (?, 1, ?)
              ON DUPLICATE KEY UPDATE hits = IF(reset_at <= ?, 1, hits + 1), reset_at = IF(reset_at <= ?, ?, reset_at)',
@@ -102,6 +102,24 @@ final class Http
             $pdo->prepare('DELETE FROM bwc_rate_limits WHERE reset_at < ?')->execute([$now - 3600]);
         }
         return ['ok' => (int) $row['hits'] <= $limit, 'retryAfter' => max(0, (int) $row['reset_at'] - $now)];
+    }
+
+    private static function bucketKey(string $bucket): string
+    {
+        return substr($bucket, 0, 60) . ':' . substr(hash('sha256', Config::get()->secret() . $bucket), 0, 16);
+    }
+
+    /**
+     * Secondes d'attente si la limite est déjà atteinte, 0 sinon, sans compter
+     * de tentative (pour la connexion, seuls les échecs comptent).
+     */
+    public static function rateLimitWait(string $bucket, int $limit): int
+    {
+        $statement = Database::pdo()->prepare('SELECT hits, reset_at FROM bwc_rate_limits WHERE bucket = ?');
+        $statement->execute([self::bucketKey($bucket)]);
+        $row = $statement->fetch();
+        $now = time();
+        return $row !== false && (int) $row['reset_at'] > $now && (int) $row['hits'] >= $limit ? (int) $row['reset_at'] - $now : 0;
     }
 
     public static function verifyTurnstile(string $token, string $secret): bool

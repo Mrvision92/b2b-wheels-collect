@@ -16,6 +16,7 @@ use Bwc\Mail\SmtpMailer;
 final class App
 {
     private static ?BookingStore $store = null;
+    private static ?GarageStore $garages = null;
     private static ?Mailer $mailer = null;
     private static ?CalendarClient $calendar = null;
     private static bool $calendarBuilt = false;
@@ -28,6 +29,11 @@ final class App
     public static function store(): BookingStore
     {
         return self::$store ??= new BookingStore(Database::pdo());
+    }
+
+    public static function garages(): GarageStore
+    {
+        return self::$garages ??= new GarageStore(Database::pdo());
     }
 
     public static function calendar(): ?CalendarClient
@@ -64,6 +70,6 @@ final class App
 
     public static function bookings(): BookingService
     {
-        return new BookingService(self::config(), self::store(), self::calendar(), self::notifications());
+        return new BookingService(self::config(), self::store(), self::garages(), self::calendar(), self::notifications());
     }
 }

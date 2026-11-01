@@ -104,22 +104,31 @@ final class Booking
     }
 
     /**
-     * Événement Google Agenda. Les propriétés privées relient l'événement à
-     * la réservation, même si VBM le déplace dans l'agenda.
+     * Événement Google Agenda, selon l'état de la réservation. Les propriétés
+     * privées relient l'événement à la réservation.
      *
      * @param array<string, mixed> $b
      * @return array<string, mixed>
      */
     public static function calendarEvent(array $b): array
     {
+        $completed = $b['status'] === 'completed';
+        $description = self::eventDescription($b);
+        if ($completed && !empty($b['completed_at'])) {
+            $at = (int) strtotime($b['completed_at'] . ' UTC');
+            $description = 'ENLEVÉ le ' . Time::formatDateLong(Time::dateOf($at)) . ' à ' . Time::timeOf($at) . "\n\n" . $description;
+        }
         return [
             'id' => $b['google_event_id'],
-            'summary' => self::eventSummary($b),
-            'description' => self::eventDescription($b),
+            'status' => 'confirmed',
+            'summary' => ($completed ? '✓ ENLEVÉ — ' : '') . self::eventSummary($b),
+            'description' => $description,
             'location' => self::address($b) . ', Belgique',
             'start' => ['dateTime' => gmdate('Y-m-d\TH:i:s\Z', $b['start_ts']), 'timeZone' => Time::ZONE],
             'end' => ['dateTime' => gmdate('Y-m-d\TH:i:s\Z', $b['end_ts']), 'timeZone' => Time::ZONE],
             'transparency' => 'opaque',
+            // Vert « basilic » une fois les jantes récupérées, couleur de l'agenda sinon.
+            'colorId' => $completed ? '10' : null,
             'extendedProperties' => ['private' => ['bwc' => '1', 'bwcRef' => $b['reference']]],
         ];
     }

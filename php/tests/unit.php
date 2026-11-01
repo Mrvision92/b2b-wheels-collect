@@ -171,40 +171,30 @@ function event(string $summary, array $extra = []): array
 
 function row(string $reference, array $extra = []): array
 {
-    return $extra + ['reference' => $reference, 'start_ts' => strtotime('2026-11-03T08:00:00Z'), 'end_ts' => strtotime('2026-11-03T10:00:00Z'),
-        'google_status' => 'off', 'synced_ts' => null];
+    return $extra + ['reference' => $reference, 'status' => 'confirmed', 'start_ts' => strtotime('2026-11-03T08:00:00Z'), 'end_ts' => strtotime('2026-11-03T10:00:00Z')];
 }
 
 test('deux places par créneau', function () {
-    eq(Availability::evaluate(slotNov3(), [row('A')], null, null, 2)['available'], true);
-    eq(Availability::evaluate(slotNov3(), [row('A'), row('B')], null, null, 2)['available'], false);
+    eq(Availability::evaluate(slotNov3(), [row('A')], null, 2)['available'], true);
+    eq(Availability::evaluate(slotNov3(), [row('A'), row('B')], null, 2)['available'], false);
+    eq(Availability::evaluate(slotNov3(), [row('A'), row('B', ['status' => 'completed'])], null, 2)['available'], false, 'un enlèvement effectué garde sa place');
+    eq(Availability::evaluate(slotNov3(), [row('A'), row('B', ['status' => 'cancelled'])], null, 2)['available'], true, 'un enlèvement annulé libère sa place');
 });
 
 test("un événement « Fermé » ou sur toute la journée ferme le créneau, « Disponible » ne compte pas", function () {
-    eq(Availability::evaluate(slotNov3(), [], [event('FERMÉ')], 0.0, 2)['blocked'], true);
-    eq(Availability::evaluate(slotNov3(), [], [event('Congé atelier')], 0.0, 2)['blocked'], true);
-    eq(Availability::evaluate(slotNov3(), [], [event('Vacances', ['allDay' => true])], 0.0, 2)['blocked'], true);
-    eq(Availability::evaluate(slotNov3(), [], [event('RDV client', ['transparent' => true])], 0.0, 2)['taken'], 0);
-    eq(Availability::evaluate(slotNov3(), [], [event('RDV client')], 0.0, 2)['taken'], 1);
+    eq(Availability::evaluate(slotNov3(), [], [event('FERMÉ')], 2)['blocked'], true);
+    eq(Availability::evaluate(slotNov3(), [], [event('Congé atelier')], 2)['blocked'], true);
+    eq(Availability::evaluate(slotNov3(), [], [event('Vacances', ['allDay' => true])], 2)['blocked'], true);
+    eq(Availability::evaluate(slotNov3(), [], [event('RDV client', ['transparent' => true])], 2)['taken'], 0);
+    eq(Availability::evaluate(slotNov3(), [], [event('RDV client')], 2)['taken'], 1);
 });
 
-test('une réservation du site ne ferme jamais le créneau, même au nom « Garage Complet »', function () {
+test('les événements créés par le site sont ignorés : la base fait foi', function () {
     $own = event('ENLÈVEMENT — Garage Complet — 4 jantes', ['props' => ['bwc' => '1', 'bwcRef' => 'BWC-AAAA-AAAA']]);
-    $result = Availability::evaluate(slotNov3(), [row('BWC-AAAA-AAAA', ['google_status' => 'synced', 'synced_ts' => 10.0])], [$own], 100.0, 2);
-    eq($result['blocked'], false);
-    eq($result['taken'], 1, 'comptée une seule fois');
-});
-
-test("une réservation déplacée ou supprimée dans l'agenda libère sa place", function () {
-    $synced = row('BWC-MOVE-D000', ['google_status' => 'synced', 'synced_ts' => 10.0]);
-    eq(Availability::evaluate(slotNov3(), [$synced], [], 100.0, 2)['taken'], 0, 'absente de l\'agenda lu après la copie');
-    eq(Availability::evaluate(slotNov3(), [$synced], null, null, 2)['taken'], 1, 'sans agenda, la base fait foi');
-    $fresh = row('BWC-FRES-H000', ['google_status' => 'synced', 'synced_ts' => 99.5]);
-    eq(Availability::evaluate(slotNov3(), [$fresh], [], 100.0, 2)['taken'], 1, 'copiée pendant la lecture : on la compte');
-    $pending = row('BWC-PEND-0000', ['google_status' => 'pending']);
-    eq(Availability::evaluate(slotNov3(), [$pending], [], 100.0, 2)['taken'], 1, 'pas encore copiée');
-    $movedHere = event('ENLÈVEMENT — Garage X — 2 jantes', ['props' => ['bwc' => '1', 'bwcRef' => 'BWC-ELSE-WHER']]);
-    eq(Availability::evaluate(slotNov3(), [], [$movedHere], 100.0, 2)['taken'], 1, 'déplacée vers ce créneau');
+    $result = Availability::evaluate(slotNov3(), [row('BWC-AAAA-AAAA')], [$own], 2);
+    eq($result['blocked'], false, 'le nom « Complet » ne ferme rien');
+    eq($result['taken'], 1, 'comptée une seule fois, par la base');
+    eq(Availability::evaluate(slotNov3(), [], [$own], 2)['taken'], 0, 'un événement du site sans réservation ne prend pas de place');
 });
 
 /* Emails ---------------------------------------------------------------- */
@@ -216,7 +206,7 @@ function sampleBooking(array $overrides = []): array
         'slot_mode' => 'ranges', 'garage_name' => 'Garage <Dupont>', 'contact_name' => 'Marie Dupont', 'phone' => '+32470123456',
         'email' => 'atelier@garage-dupont.be', 'street' => 'Rue de la Station 12', 'postal_code' => '1000', 'city' => 'Bruxelles',
         'rim_count' => 4, 'garage_reference' => 'DOSSIER-2041', 'comment' => "Avec pneus\nAccès arrière", 'photo_count' => 2,
-        'google_status' => 'synced', 'google_link' => 'https://calendar.google.com/x', 'garage_mail' => 'sent',
+        'google_status' => 'synced', 'google_link' => 'https://calendar.google.com/x', 'status' => 'confirmed',
         'start_ts' => strtotime('2026-11-03T08:00:00Z'), 'end_ts' => strtotime('2026-11-03T10:00:00Z'),
     ];
 }
@@ -238,9 +228,30 @@ test('notification VBM avec photos jointes, ou à demander après un renvoi', fu
     contains($first['html'], '2 photos jointes à cet email');
     contains($first['html'], 'Ouvrir dans Google Agenda');
     contains($first['text'], 'Réf. du garage : DOSSIER-2041');
-    $retry = Templates::vbmNotification(sampleBooking(['garage_mail' => 'pending']), $ctx, false);
+    $retry = Templates::vbmNotification(sampleBooking(), $ctx, false, false);
     contains($retry['html'], 'demandez-les au garage');
     contains($retry['html'], "n'a pas encore pu être envoyé au garage");
+});
+
+test('emails de suivi : enlèvement effectué, nouveau créneau, annulation', function () {
+    $ctx = ['appUrl' => 'https://b2b.example', 'contactPhone' => '+32 2 523 20 02', 'contactEmail' => ''];
+    $done = Templates::pickupCompleted(sampleBooking(['completed_at' => '2026-11-03 09:12:00']), $ctx);
+    eq($done['subject'], "Confirmation d'enlèvement de vos jantes — B2B Wheels Collect");
+    contains($done['text'], 'Bonjour Marie,');
+    contains($done['text'], 'Nous vous confirmons que notre équipe a bien récupéré vos jantes.');
+    contains($done['text'], "Date de l'enlèvement : Mardi 3 novembre 2026");
+    contains($done['text'], 'Nombre de jantes : 4');
+    contains($done['text'], 'Référence : BWC-7K4M-2QX9');
+    contains($done['text'], "L'équipe VBM Wheels Repair");
+    contains($done['html'], 'Garage &lt;Dupont&gt;');
+    $moved = Templates::bookingRescheduled(sampleBooking(), $ctx);
+    contains($moved['subject'], 'Nouveau créneau');
+    contains($moved['text'], 'Créneau : 9 h – 11 h');
+    $cancelled = Templates::bookingCancelled(sampleBooking(['cancel_reason' => 'Garage fermé ce jour-là']), $ctx);
+    contains($cancelled['text'], 'Motif : Garage fermé ce jour-là');
+    $access = Templates::adminAccess('Sophie', 'https://b2b.example/admin/mot-de-passe.php?jeton=abc', true, 72);
+    contains($access['html'], 'jeton=abc');
+    contains($access['text'], '72 heures');
 });
 
 test('message SMTP : objet encodé, texte, HTML et pièce jointe', function () {

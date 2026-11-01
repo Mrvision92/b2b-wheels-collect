@@ -46,11 +46,12 @@ try {
 
 try {
     $count = (int) Database::pdo()->query('SELECT COUNT(*) FROM bwc_bookings')->fetchColumn();
-    Database::pdo()->query('SELECT 1 FROM bwc_booking_days LIMIT 1');
-    Database::pdo()->query('SELECT 1 FROM bwc_rate_limits LIMIT 1');
-    $report(true, 'Base de données MySQL', "$count réservation(s)");
+    $pending = Bwc\Schema::pending(Database::pdo());
+    $admins = (int) Database::pdo()->query('SELECT COUNT(*) FROM bwc_admins WHERE active = 1')->fetchColumn();
+    $report($pending === [], 'Base de données MySQL', "$count réservation(s)" . ($pending === [] ? '' : ' — mise à jour à faire : php app/tools/migrate.php'));
+    $report($admins > 0, 'Administrateurs', $admins > 0 ? "$admins compte(s) actif(s)" : 'aucun : php app/tools/admin.php create votre@email.be "Votre nom"');
 } catch (\Throwable $error) {
-    $report(false, 'Base de données MySQL', $error->getMessage() . ' (avez-vous importé database/schema.sql ?)');
+    $report(false, 'Base de données MySQL', $error->getMessage() . ' (lancez php app/tools/migrate.php)');
 }
 
 $calendar = App::calendar();

@@ -105,7 +105,7 @@ try {
         // des envois restés en attente.
         Http::finishResponse();
         $notifications = App::notifications();
-        $notifications->sendVbmNotification($booking, $photos['photos']);
+        $notifications->send($booking, 'vbm_notification', null, '', $photos['photos']);
         $notifications->retryPending(5);
     }
 } catch (CalendarUnavailable $error) {

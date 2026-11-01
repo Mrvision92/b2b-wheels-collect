@@ -9,6 +9,7 @@ use Bwc\Calendar\CalendarUnavailable;
 use Bwc\Calendar\GoogleCalendar;
 use Bwc\Config;
 use Bwc\Database;
+use Bwc\GarageStore;
 use Bwc\Mail\Mailer;
 use Bwc\Mail\MailerException;
 use Bwc\Notifications;
@@ -73,19 +74,12 @@ function contains(string $haystack, string $needle, string $label = ''): void
     ok(str_contains($haystack, $needle), ($label !== '' ? "$label : " : '') . "« $needle » introuvable");
 }
 
-/** Vide les tables de la base de test. */
+/** Recrée toutes les tables de la base de test, vides. */
 function resetDatabase(): void
 {
     $pdo = Database::pdo();
-    $schema = (string) file_get_contents(dirname(__DIR__) . '/database/schema.sql');
-    foreach (array_filter(array_map('trim', explode(';', $schema))) as $statement) {
-        if (preg_match('/^(CREATE|SET)/m', $statement) === 1) {
-            $pdo->exec($statement);
-        }
-    }
-    foreach (['bwc_bookings', 'bwc_booking_days', 'bwc_rate_limits'] as $table) {
-        $pdo->exec("TRUNCATE TABLE $table");
-    }
+    \Bwc\Schema::dropAll($pdo);
+    \Bwc\Schema::install($pdo);
 }
 
 /** Réservation valide, telle que sortie du Validator. */
@@ -148,12 +142,39 @@ final class FakeCalendar implements CalendarClient
         if ($this->failInsert) {
             throw new CalendarUnavailable('création refusée (test)');
         }
-        if (isset($this->events[$event['id']])) {
+        if (isset($this->events[$event['id']]) || isset($this->deleted[$event['id']])) {
             return null;
         }
         $created = GoogleCalendar::fromJson($event + ['htmlLink' => 'https://calendar.google.com/event?eid=' . $event['id']]);
-        $this->events[$event['id']] = $created;
+        $this->events[$event['id']] = $created + ['colorId' => $event['colorId'] ?? null];
         return $created;
+    }
+
+    /** @var array<string, true> identifiants supprimés (Google les garde : une nouvelle création répond 409) */
+    public array $deleted = [];
+    public int $patches = 0;
+
+    public function patchEvent(string $id, array $event): ?array
+    {
+        if ($this->failInsert) {
+            throw new CalendarUnavailable('modification refusée (test)');
+        }
+        $this->patches++;
+        unset($this->deleted[$id]);
+        $updated = GoogleCalendar::fromJson(['id' => $id, 'htmlLink' => 'https://calendar.google.com/event?eid=' . $id] + $event);
+        $this->events[$id] = $updated + ['colorId' => $event['colorId'] ?? null];
+        return $updated;
+    }
+
+    public function deleteEvent(string $id): void
+    {
+        if ($this->failInsert) {
+            throw new CalendarUnavailable('suppression refusée (test)');
+        }
+        if (isset($this->events[$id])) {
+            $this->deleted[$id] = true;
+        }
+        unset($this->events[$id]);
     }
 }
 
@@ -170,19 +191,35 @@ final class FakeMailer implements Mailer
         return 'demo';
     }
 
-    public function send(array $email): void
+    public function send(array $email): string
     {
         if ($this->failure !== null && ($this->failFor === null || in_array($this->failFor, $email['to'], true))) {
             throw $this->failure;
         }
         $this->sent[] = $email;
+        return 'fake:' . count($this->sent);
+    }
+
+    /** @return list<string> objets des emails envoyés */
+    public function subjects(): array
+    {
+        return array_column($this->sent, 'subject');
     }
 }
 
-/** @return array{0: BookingService, 1: Notifications, 2: BookingStore} */
+/** @return array{0: BookingService, 1: Notifications, 2: BookingStore, 3: GarageStore} */
 function services(?CalendarClient $calendar, Mailer $mailer, int $now = Tests::NOW): array
 {
     $store = new BookingStore(Database::pdo());
+    $garages = new GarageStore(Database::pdo());
     $notifications = new Notifications($store, $mailer, $calendar, Config::get());
-    return [new BookingService(Config::get(), $store, $calendar, $notifications, static fn (): int => $now), $notifications, $store];
+    return [new BookingService(Config::get(), $store, $garages, $calendar, $notifications, static fn (): int => $now), $notifications, $store, $garages];
+}
+
+/** Statut des emails d'une réservation, par type. @return array<string, string> */
+function emailStates(int $bookingId): array
+{
+    $statement = Database::pdo()->prepare('SELECT kind, status FROM bwc_notifications WHERE booking_id = ? ORDER BY id');
+    $statement->execute([$bookingId]);
+    return $statement->fetchAll(PDO::FETCH_KEY_PAIR);
 }

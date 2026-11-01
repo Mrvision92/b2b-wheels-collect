@@ -15,9 +15,10 @@ final class Validator
 
     /**
      * @param array<string, mixed> $in
+     * @param array{emailOptional?: bool} $options emailOptional : saisie par VBM, le garage n'a pas toujours d'email
      * @return array{0: array<string, mixed>|null, 1: array<string, string>} [données nettoyées, erreurs par champ]
      */
-    public static function booking(array $in, int $maxRims): array
+    public static function booking(array $in, int $maxRims, array $options = []): array
     {
         $errors = [];
         $data = [];
@@ -54,10 +55,11 @@ final class Validator
             return Phone::normalize($v) ?? ['error' => 'Numéro invalide. Exemple : 0470 12 34 56 ou +32 2 123 45 67.'];
         });
 
-        $check('email', static function (mixed $v) {
+        $emailOptional = $options['emailOptional'] ?? false;
+        $check('email', static function (mixed $v) use ($emailOptional) {
             $value = is_string($v) ? trim($v) : '';
             if ($value === '') {
-                return ['error' => 'Indiquez une adresse email.'];
+                return $emailOptional ? '' : ['error' => 'Indiquez une adresse email.'];
             }
             if (strlen($value) > 254) {
                 return ['error' => 'Adresse email trop longue.'];

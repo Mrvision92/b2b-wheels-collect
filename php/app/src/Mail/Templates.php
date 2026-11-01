@@ -103,10 +103,10 @@ HTML;
     }
 
     /** @param array{appUrl: string, contactPhone: string, contactEmail: string} $ctx */
-    private static function contactSentence(array $ctx): string
+    private static function contactSentence(array $ctx, string $before = ''): string
     {
         $phone = $ctx['contactPhone'] !== '' ? Phone::normalize($ctx['contactPhone']) : null;
-        return $phone !== null ? ' ou appelez-nous au ' . Phone::format($phone) : '';
+        return $phone !== null ? $before . ' ou appelez-nous au ' . Phone::format($phone) . ($before !== '' ? '.' : '') : ($before !== '' ? $before . '.' : '');
     }
 
     private static function plural(int $count, string $word): string
@@ -208,7 +208,7 @@ HTML;
      * @param array{appUrl: string, contactPhone: string, contactEmail: string} $ctx
      * @return array{subject: string, html: string, text: string}
      */
-    public static function vbmNotification(array $b, array $ctx, bool $photosAttached): array
+    public static function vbmNotification(array $b, array $ctx, bool $photosAttached, bool $garageSent = true): array
     {
         $d = Booking::describe($b);
         $photoCount = (int) $b['photo_count'];
@@ -246,7 +246,6 @@ HTML;
         }
         $rows[] = ['Référence', self::e($b['reference'])];
 
-        $garageSent = $b['garage_mail'] === 'sent';
         $warning = $garageSent ? '' : '<p style="margin:0 0 24px;padding:12px 14px;border:1px solid #f0c4c6;background:#fdf5f5;font-size:14px;line-height:20px;color:#9b1c22;">L\'email de confirmation n\'a pas encore pu être envoyé au garage. Un nouvel essai est fait automatiquement&nbsp;; en cas de doute, prévenez le garage par téléphone.</p>';
         $agenda = $b['google_status'] === 'off'
             ? "L'enlèvement est enregistré dans la base de données du site (Google Agenda n'est pas connecté)."
@@ -298,6 +297,158 @@ HTML;
                 'Notification automatique B2B Wheels Collect. Ne pas transférer : contient des données personnelles.',
             ),
             'text' => implode("\n", $text),
+        ];
+    }
+
+    /* Emails de suivi envoyés au garage ---------------------------------- */
+
+    /**
+     * Message court au garage : titre, phrase, détails, mot de la fin.
+     *
+     * @param array<string, mixed> $b
+     * @param list<array{0: string, 1: string}> $rows [libellé, valeur texte]
+     * @param array{appUrl: string, contactPhone: string, contactEmail: string} $ctx
+     * @return array{subject: string, html: string, text: string}
+     */
+    private static function garageMessage(array $b, array $ctx, string $subject, string $eyebrow, string $title, string $intro, array $rows, string $outro): array
+    {
+        $ink = self::INK;
+        $muted = self::MUTED;
+        $firstName = explode(' ', trim($b['contact_name']))[0] ?: $b['contact_name'];
+        $htmlRows = array_map(static fn (array $row): array => [$row[0], self::e($row[1])], $rows);
+        $body = '
+<p style="margin:0 0 10px;font-size:14px;line-height:20px;color:' . $muted . ';">' . self::e($eyebrow) . '</p>
+<h1 class="h1" style="margin:0 0 28px;font-size:30px;line-height:36px;font-weight:600;letter-spacing:-0.6px;color:' . $ink . ';">' . self::e($title) . '</h1>
+<p style="margin:0 0 14px;font-size:16px;line-height:24px;">Bonjour ' . self::e($firstName) . ',</p>
+<p style="margin:0 0 24px;font-size:16px;line-height:24px;">' . self::e($intro) . '</p>
+' . self::detailRows($htmlRows) . '
+<p style="margin:28px 0 0;font-size:15px;line-height:23px;color:' . $ink . ';">' . self::e($outro) . '</p>
+<p style="margin:24px 0 0;font-size:15px;line-height:23px;color:' . $ink . ';">Merci pour votre confiance.<br>L\'équipe VBM Wheels Repair</p>';
+        $host = parse_url($ctx['appUrl'], PHP_URL_HOST) ?: $ctx['appUrl'];
+        $footer = 'Email envoyé par ' . self::e($host) . ' au sujet de votre enlèvement ' . self::e($b['reference']) . '. <a href="' . self::e($ctx['appUrl']) . '/#confidentialite" style="color:' . $muted . ';">Confidentialité</a>';
+        $text = ["Bonjour $firstName,", '', $intro, ''];
+        foreach ($rows as [$label, $value]) {
+            $text[] = "$label : $value";
+        }
+        array_push($text, '', $outro, '', 'Merci pour votre confiance.', "L'équipe VBM Wheels Repair");
+        return [
+            'subject' => $subject,
+            'html' => self::layout($subject, $intro, $body, $footer),
+            'text' => implode("\n", $text),
+        ];
+    }
+
+    /**
+     * Confirmation que les jantes ont été récupérées.
+     *
+     * @param array<string, mixed> $b
+     * @param array{appUrl: string, contactPhone: string, contactEmail: string} $ctx
+     * @return array{subject: string, html: string, text: string}
+     */
+    public static function pickupCompleted(array $b, array $ctx): array
+    {
+        $completedAt = !empty($b['completed_at']) ? (int) strtotime($b['completed_at'] . ' UTC') : time();
+        $date = \Bwc\Time::capitalize(\Bwc\Time::formatDateLong(\Bwc\Time::dateOf($completedAt)));
+        return self::garageMessage(
+            $b,
+            $ctx,
+            "Confirmation d'enlèvement de vos jantes — B2B Wheels Collect",
+            'Enlèvement effectué · ' . $b['reference'],
+            'Vos jantes sont entre nos mains.',
+            'Nous vous confirmons que notre équipe a bien récupéré vos jantes.',
+            [
+                ['Garage', $b['garage_name']],
+                ["Date de l'enlèvement", $date],
+                ['Nombre de jantes', (string) $b['rim_count']],
+                ['Référence', $b['reference']],
+            ] + ($b['garage_reference'] !== '' ? [4 => ['Votre référence', $b['garage_reference']]] : []),
+            "Après l'examen des jantes à l'atelier, nous vous envoyons le devis à valider." . self::contactSentence($ctx, ' Une question ? Répondez à cet email'),
+        );
+    }
+
+    /**
+     * Nouveau créneau décidé par VBM.
+     *
+     * @param array<string, mixed> $b
+     * @param array{appUrl: string, contactPhone: string, contactEmail: string} $ctx
+     * @return array{subject: string, html: string, text: string}
+     */
+    public static function bookingRescheduled(array $b, array $ctx): array
+    {
+        $d = Booking::describe($b);
+        return self::garageMessage(
+            $b,
+            $ctx,
+            "Nouveau créneau pour votre enlèvement — {$b['reference']}",
+            'Enlèvement modifié · ' . $b['reference'],
+            'Votre enlèvement change de créneau.',
+            "Votre enlèvement de jantes a été déplacé. Nous passerons à l'adresse indiquée " . $d['dateLong'] . ', ' . $d['slotPhrase'] . '.',
+            [
+                ['Nouvelle date', $d['dateLong']],
+                ['Créneau', $d['slotLabel']],
+                ['Adresse', $d['address']],
+                ['Nombre de jantes', (string) $b['rim_count']],
+                ['Référence', $b['reference']],
+            ],
+            'Ce créneau ne vous convient pas ? Répondez simplement à cet email' . self::contactSentence($ctx) . '.',
+        );
+    }
+
+    /**
+     * Annulation décidée avec VBM.
+     *
+     * @param array<string, mixed> $b
+     * @param array{appUrl: string, contactPhone: string, contactEmail: string} $ctx
+     * @return array{subject: string, html: string, text: string}
+     */
+    public static function bookingCancelled(array $b, array $ctx): array
+    {
+        $d = Booking::describe($b);
+        $rows = [
+            ['Date prévue', $d['dateLong']],
+            ['Créneau', $d['slotLabel']],
+            ['Référence', $b['reference']],
+        ];
+        if (($b['cancel_reason'] ?? '') !== '') {
+            $rows[] = ['Motif', $b['cancel_reason']];
+        }
+        return self::garageMessage(
+            $b,
+            $ctx,
+            "Annulation de votre enlèvement — {$b['reference']}",
+            'Enlèvement annulé · ' . $b['reference'],
+            'Votre enlèvement est annulé.',
+            "L'enlèvement de jantes prévu à votre garage a été annulé.",
+            $rows,
+            "Pour planifier un nouvel enlèvement, réservez sur {$ctx['appUrl']} ou répondez à cet email" . self::contactSentence($ctx) . '.',
+        );
+    }
+
+    /**
+     * Lien de choix du mot de passe d'un administrateur (invitation ou oubli).
+     *
+     * @return array{subject: string, html: string, text: string}
+     */
+    public static function adminAccess(string $name, string $link, bool $invitation, int $hours): array
+    {
+        $ink = self::INK;
+        $muted = self::MUTED;
+        $subject = $invitation ? 'Votre accès à l\'administration B2B Wheels Collect' : 'Choisir un nouveau mot de passe — B2B Wheels Collect';
+        $intro = $invitation
+            ? 'Un accès à l\'administration B2B Wheels Collect vient de vous être ouvert. Choisissez votre mot de passe pour l\'activer.'
+            : 'Une demande de nouveau mot de passe a été faite pour votre accès à l\'administration B2B Wheels Collect.';
+        $validity = "Ce lien est valable $hours heure" . ($hours > 1 ? 's' : '') . " et ne fonctionne qu'une fois.";
+        $body = '
+<h1 class="h1" style="margin:0 0 24px;font-size:28px;line-height:34px;font-weight:600;letter-spacing:-0.5px;color:' . $ink . ';">' . ($invitation ? 'Bienvenue.' : 'Nouveau mot de passe.') . '</h1>
+<p style="margin:0 0 14px;font-size:16px;line-height:24px;">Bonjour ' . self::e($name) . ',</p>
+<p style="margin:0 0 26px;font-size:16px;line-height:24px;">' . self::e($intro) . '</p>
+<div style="margin:0 0 24px;">' . self::button($link, 'Choisir mon mot de passe', true) . '</div>
+<p style="margin:0;font-size:14px;line-height:21px;color:' . $muted . ';">' . self::e($validity) . ($invitation ? '' : ' Si vous n\'êtes pas à l\'origine de cette demande, ignorez cet email : votre mot de passe actuel reste valable.') . '</p>';
+        $text = "Bonjour $name,\n\n$intro\n\n$link\n\n$validity";
+        return [
+            'subject' => $subject,
+            'html' => self::layout($subject, $intro, $body, 'Email automatique B2B Wheels Collect — administration.'),
+            'text' => $text,
         ];
     }
 }

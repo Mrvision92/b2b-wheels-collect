@@ -17,7 +17,7 @@ if (PHP_SAPI !== 'cli') {
 require dirname(__DIR__) . '/bootstrap.php';
 
 $summary = Bwc\App::notifications()->retryPending(50);
-if ($summary['processed'] > 0) {
+if ($summary['emails'] + $summary['calendar'] > 0) {
     Bwc\Log::info('cron.notifications', $summary);
 }
 echo json_encode($summary), PHP_EOL;

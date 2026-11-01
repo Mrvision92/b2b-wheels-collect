@@ -17,7 +17,8 @@ interface Mailer
 
     /**
      * @param array<string, mixed> $email
+     * @return string identifiant ou réponse du service d'envoi, une fois l'email accepté
      * @throws MailerException
      */
-    public function send(array $email): void;
+    public function send(array $email): string;
 }

@@ -24,11 +24,12 @@ final class DemoMailer implements Mailer
         return substr(hash('sha256', $idempotencyKey), 0, 24);
     }
 
-    public function send(array $email): void
+    public function send(array $email): string
     {
-        $file = $this->dir . '/' . self::idFor($email['idempotency_key']) . '.json';
+        $id = self::idFor($email['idempotency_key']);
+        $file = "{$this->dir}/$id.json";
         if (is_file($file)) {
-            return; // Déjà « envoyé » : comme un service qui ignore les doublons.
+            return "demo:$id"; // Déjà « envoyé » : comme un service qui ignore les doublons.
         }
         $stored = $email;
         $stored['created_at'] = gmdate('c');
@@ -40,6 +41,7 @@ final class DemoMailer implements Mailer
         if (file_put_contents($file, json_encode($stored, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX) === false) {
             throw new MailerException("Impossible d'enregistrer l'email de démonstration", true);
         }
+        return "demo:$id";
     }
 
     /** @return array<string, mixed>|null */

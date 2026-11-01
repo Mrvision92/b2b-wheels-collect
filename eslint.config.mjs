@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Version PHP : JavaScript sans framework, hors des règles Next.js.
+    "php/**",
   ]),
 ]);
 

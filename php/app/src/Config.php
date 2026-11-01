@@ -60,6 +60,13 @@ final class Config
         return $legal;
     }
 
+    /** Mois de conservation des données personnelles, null si non défini. */
+    public function retentionMonths(): ?int
+    {
+        $months = $this->settings['data_retention_months'] ?? null;
+        return is_int($months) && $months > 0 ? $months : null;
+    }
+
     public function demo(): bool
     {
         return ($this->secrets['demo'] ?? true) !== false;
@@ -150,6 +157,12 @@ final class Config
     {
         $t = ($this->secrets['turnstile'] ?? []) + ['site_key' => '', 'secret_key' => ''];
         return $t['site_key'] !== '' && $t['secret_key'] !== '' ? $t : ['site_key' => '', 'secret_key' => ''];
+    }
+
+    /** Clé de la page d'installation du premier administrateur (vide = page désactivée). */
+    public function adminSetupKey(): string
+    {
+        return trim((string) ($this->secrets['admin_setup_key'] ?? ''));
     }
 
     /** Dossier d'écriture (créé au besoin) sous app/storage/. */

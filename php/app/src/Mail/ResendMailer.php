@@ -18,7 +18,7 @@ final class ResendMailer implements Mailer
         return 'resend';
     }
 
-    public function send(array $email): void
+    public function send(array $email): string
     {
         $payload = [
             'from' => $this->from,
@@ -49,12 +49,12 @@ final class ResendMailer implements Mailer
         }
         $json = json_decode($response['body'], true) ?: [];
         if ($response['status'] >= 200 && $response['status'] < 300 && !empty($json['id'])) {
-            return;
+            return 'resend:' . $json['id'];
         }
         // Même clé déjà utilisée avec un autre contenu (renvoi sans les photos) : déjà accepté.
         $name = strtolower(($json['name'] ?? '') . ' ' . ($json['message'] ?? ''));
         if ($response['status'] === 409 && str_contains($name, 'idempotent') && !str_contains($name, 'concurrent')) {
-            return;
+            return 'resend:déjà accepté';
         }
         throw new MailerException(
             trim("Resend a refusé l'envoi ({$response['status']} " . ($json['name'] ?? '') . ' ' . ($json['message'] ?? '') . ')'),
