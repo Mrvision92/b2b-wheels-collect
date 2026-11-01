@@ -49,7 +49,7 @@ try {
     $pending = Bwc\Schema::pending(Database::pdo());
     $admins = (int) Database::pdo()->query('SELECT COUNT(*) FROM bwc_admins WHERE active = 1')->fetchColumn();
     $report($pending === [], 'Base de données MySQL', "$count réservation(s)" . ($pending === [] ? '' : ' — mise à jour à faire : php app/tools/migrate.php'));
-    $report($admins > 0, 'Administrateurs', $admins > 0 ? "$admins compte(s) actif(s)" : 'aucun : php app/tools/admin.php create votre@email.be "Votre nom"');
+    $report($admins > 0, 'Administrateurs', $admins > 0 ? "$admins compte(s) actif(s)" : 'aucun : créez-en un avec app/tools/admin.php (dans le dossier de l\'administration)');
 } catch (\Throwable $error) {
     $report(false, 'Base de données MySQL', $error->getMessage() . ' (lancez php app/tools/migrate.php)');
 }

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Bwc\Admin;
 
 use Bwc\App;
-use Bwc\Backup;
 use Bwc\Database;
+use Bwc\Meta;
 use Bwc\Schema;
 
 /** État du service, pour savoir d'un coup d'œil si tout fonctionne. */
@@ -18,12 +18,9 @@ final class ServiceStatus
         $pdo = Database::pdo();
         $config = App::config();
         $count = static fn (string $sql): int => (int) $pdo->query($sql)->fetchColumn();
-        $backups = glob(Backup::dir() . '/bwc-*.sql.gz') ?: [];
-        $lastBackup = $backups === [] ? null : max(array_map('filemtime', $backups));
-        $lastRun = static function (string $name) use ($config): ?int {
-            $value = @file_get_contents($config->storage('cron') . "/$name.last");
-            return $value === false ? null : (int) $value;
-        };
+        // Lu dans la base : les tâches planifiées tournent côté site, même si l'administration est installée à part.
+        $metaTime = static fn (string $name): ?int => ($value = Meta::get($name)) === null ? null : (int) $value;
+        $siteSettings = Meta::get('settings.site');
         return [
             'demo' => $config->demo(),
             'mail' => $config->mailTransport(),
@@ -38,10 +35,11 @@ final class ServiceStatus
             'calendar' => App::calendar() !== null,
             'calendarPending' => $count("SELECT COUNT(*) FROM bwc_bookings WHERE google_status = 'pending'"),
             'calendarFailed' => $count("SELECT COUNT(*) FROM bwc_bookings WHERE google_status = 'failed'"),
-            'lastBackup' => $lastBackup,
-            'backupCount' => count($backups),
-            'cronNotifications' => $lastRun('notifications'),
-            'cronMaintenance' => $lastRun('maintenance'),
+            'lastBackup' => $metaTime('backup.last'),
+            'backupCount' => (int) (Meta::get('backup.count') ?? 0),
+            'cronNotifications' => $metaTime('cron.notifications'),
+            'cronMaintenance' => $metaTime('cron.maintenance'),
+            'settingsMatch' => $siteSettings === null || $siteSettings === Meta::settingsFingerprint(),
             'migrationsPending' => Schema::pending($pdo),
             'retention' => $config->retentionMonths(),
             'legalComplete' => !in_array('', array_intersect_key($config->legal(), array_flip(['entity', 'address', 'vat', 'retention'])), true),

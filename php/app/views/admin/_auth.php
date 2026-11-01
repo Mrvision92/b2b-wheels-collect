@@ -17,7 +17,7 @@ use Bwc\Admin\View;
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex, nofollow">
   <title><?= View::e($title) ?> — B2B Wheels Collect</title>
-  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="<?= View::asset('assets/admin.css') ?>">
   <script src="<?= View::asset('assets/password.js') ?>" defer></script>
 </head>

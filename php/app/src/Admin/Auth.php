@@ -135,6 +135,12 @@ final class Auth
         return is_string($token) && !empty($_SESSION['csrf']) && hash_equals($_SESSION['csrf'], $token);
     }
 
+    /** Chemin local sûr pour revenir après la connexion (jamais une autre adresse). */
+    public static function isLocalPath(string $path): bool
+    {
+        return preg_match('#^/(?![/\\\\])[\w/.\-]*(\?[\w=&%.\-]*)?$#', $path) === 1;
+    }
+
     /** En-têtes communs aux pages de l'administration. */
     public static function headers(): void
     {
@@ -150,7 +156,7 @@ final class Auth
         $admin = self::current();
         if ($admin === null) {
             $back = (string) ($_SERVER['REQUEST_URI'] ?? '');
-            header('Location: connexion.php' . (preg_match('#^/[\w/.-]*admin/[\w.-]*(\?[^\s]*)?$#', $back) === 1 ? '?retour=' . rawurlencode($back) : ''));
+            header('Location: connexion.php' . (self::isLocalPath($back) ? '?retour=' . rawurlencode($back) : ''));
             exit;
         }
         return $admin;

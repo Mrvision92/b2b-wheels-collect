@@ -39,7 +39,7 @@ final class App
 
     public static function photos(): PhotoStore
     {
-        return self::$photos ??= new PhotoStore(Database::pdo(), self::config()->storage('photos'));
+        return self::$photos ??= new PhotoStore(Database::pdo(), self::config()->photosDir());
     }
 
     public static function calendar(): ?CalendarClient

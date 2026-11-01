@@ -16,7 +16,7 @@ final class Access
 
     public static function link(string $token): string
     {
-        return App::config()->appUrl() . '/admin/mot-de-passe.php?jeton=' . rawurlencode($token);
+        return App::config()->adminUrl() . '/mot-de-passe.php?jeton=' . rawurlencode($token);
     }
 
     /**

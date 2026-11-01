@@ -8,8 +8,18 @@
  */
 
 return [
-    // Adresse publique du site, sans « / » final.
+    // Adresse publique du site des garages, sans « / » final.
     'app_url' => 'https://www.votre-domaine.be',
+
+    // Adresse de l'administration, sans « / » final. Vide = <app_url>/admin.
+    // Exemple si l'administration est installée à part : https://admin.votre-domaine.be
+    'admin_url' => '',
+
+    // Dossier des photos (chemin complet). Vide = app/storage/photos.
+    // Site et administration installés séparément : mettez le MÊME chemin
+    // dans les deux config.php, par exemple celui du site :
+    // /home/u123456789/domains/votre-domaine.be/app/storage/photos
+    'photos_dir' => '',
 
     // Clé secrète d'au moins 32 caractères, à générer une fois :
     //   php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"

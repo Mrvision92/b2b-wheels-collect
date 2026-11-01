@@ -74,7 +74,8 @@ final class View
     /** Fichier statique avec sa date de modification, pour forcer le rechargement après une mise à jour. */
     public static function asset(string $path): string
     {
-        return self::e($path) . '?v=' . (@filemtime(dirname(__DIR__, 3) . '/public_html/admin/' . $path) ?: '1');
+        // Les pages de l'administration sont toutes dans le même dossier que assets/.
+        return self::e($path) . '?v=' . (@filemtime(dirname((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) . '/' . $path) ?: '1');
     }
 
     public static function initials(string $name): string

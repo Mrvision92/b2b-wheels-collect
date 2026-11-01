@@ -173,6 +173,15 @@ CREATE TABLE IF NOT EXISTS bwc_rate_limits (
   PRIMARY KEY (bucket)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Fonctionnement partagé entre le site et l'administration (tâches planifiées,
+-- sauvegardes, empreinte des réglages).
+CREATE TABLE IF NOT EXISTS bwc_meta (
+  name       VARCHAR(60)  NOT NULL,
+  value      VARCHAR(255) NOT NULL,
+  updated_at DATETIME     NOT NULL,
+  PRIMARY KEY (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Mises à jour de la base déjà appliquées.
 CREATE TABLE IF NOT EXISTS bwc_migrations (
   name       VARCHAR(100) NOT NULL,
@@ -180,4 +189,4 @@ CREATE TABLE IF NOT EXISTS bwc_migrations (
   PRIMARY KEY (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO bwc_migrations (name, applied_at) VALUES ('001_admin_panel', UTC_TIMESTAMP()), ('002_booking_photos', UTC_TIMESTAMP()), ('003_internal_notes', UTC_TIMESTAMP());
+INSERT IGNORE INTO bwc_migrations (name, applied_at) VALUES ('001_admin_panel', UTC_TIMESTAMP()), ('002_booking_photos', UTC_TIMESTAMP()), ('003_internal_notes', UTC_TIMESTAMP()), ('004_meta', UTC_TIMESTAMP());

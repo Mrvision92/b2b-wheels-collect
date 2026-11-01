@@ -18,7 +18,9 @@ if (PHP_SAPI !== 'cli') {
 require dirname(__DIR__) . '/bootstrap.php';
 
 // Dernière exécution, affichée dans l'administration (Mon compte → État du service).
-@file_put_contents(Bwc\App::config()->storage('cron') . '/maintenance.last', (string) time());
+Bwc\Meta::set('cron.maintenance', (string) time());
+// Réglages de créneaux du site, comparés à ceux de l'administration.
+Bwc\Meta::set('settings.site', Bwc\Meta::settingsFingerprint());
 
 use Bwc\App;
 use Bwc\Backup;

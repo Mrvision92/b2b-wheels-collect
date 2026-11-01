@@ -72,9 +72,30 @@ final class Config
         return ($this->secrets['demo'] ?? true) !== false;
     }
 
+    /** Adresse du site public (liens des emails envoyés aux garages). */
     public function appUrl(): string
     {
         return rtrim((string) ($this->secrets['app_url'] ?? 'http://localhost:8080'), '/');
+    }
+
+    /** Adresse de l'administration (liens de mot de passe), par défaut <site>/admin. */
+    public function adminUrl(): string
+    {
+        $url = trim((string) ($this->secrets['admin_url'] ?? ''));
+        return rtrim($url !== '' ? $url : $this->appUrl() . '/admin', '/');
+    }
+
+    /** Dossier des photos, partagé entre le site et l'administration quand ils sont séparés. */
+    public function photosDir(): string
+    {
+        $dir = rtrim(trim((string) ($this->secrets['photos_dir'] ?? '')), '/');
+        if ($dir === '') {
+            return $this->storage('photos');
+        }
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0750, true);
+        }
+        return $dir;
     }
 
     public function secret(): string

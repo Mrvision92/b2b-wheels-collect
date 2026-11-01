@@ -92,6 +92,8 @@ $checks = [
     ['Base de données', $status['migrationsPending'] === [] ? 'À jour' : 'Mise à jour à faire', $status['migrationsPending'] === [] ? 'ok' : 'error',
         $status['migrationsPending'] === [] ? '' : 'php app/tools/migrate.php'],
     ['Mentions légales', $status['legalComplete'] ? 'Complètes' : 'À compléter par VBM', $status['legalComplete'] ? 'ok' : 'warn', 'app/settings.php, section legal'],
+    ['Réglages des créneaux', $status['settingsMatch'] ? 'Identiques sur le site et ici' : 'Différents entre le site et l’administration', $status['settingsMatch'] ? 'ok' : 'error',
+        $status['settingsMatch'] ? '' : 'copiez le même app/settings.php des deux côtés'],
 ];
 ?>
 <div class="dash-grid dash-grid-even">

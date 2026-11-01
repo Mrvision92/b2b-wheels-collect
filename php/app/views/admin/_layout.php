@@ -27,8 +27,8 @@ $latestAt = $latest !== [] ? strtotime($latest[0]['created_at'] . ' UTC') : 0;
   <meta name="csrf-token" content="<?= View::e($csrf) ?>">
   <meta name="theme-color" content="#ffffff">
   <title><?= View::e($page['title']) ?> — B2B Wheels Collect</title>
-  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
-  <link rel="preload" href="../assets/fonts/mona-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/mona-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="<?= View::asset('assets/admin.css') ?>">
   <script src="<?= View::asset('assets/admin.js') ?>" defer></script>
   <script src="<?= View::asset('assets/password.js') ?>" defer></script>

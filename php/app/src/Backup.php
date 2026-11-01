@@ -53,6 +53,8 @@ final class Backup
         foreach (array_slice($files, 0, max(0, count($files) - self::KEEP)) as $old) {
             @unlink($old);
         }
+        Meta::set('backup.last', (string) time());
+        Meta::set('backup.count', (string) min(count($files), self::KEEP));
         return $file;
     }
 }

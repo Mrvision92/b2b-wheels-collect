@@ -3,7 +3,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__) . '/_bootstrap.php';
+require __DIR__ . '/_bootstrap.php';
 
 use Bwc\Admin\Auth;
 use Bwc\Admin\View;
@@ -17,7 +17,7 @@ if (Auth::current() !== null) {
 }
 
 $back = (string) ($_GET['retour'] ?? $_POST['retour'] ?? '');
-$back = preg_match('#^/[\w/.-]*admin/[\w.-]*(\?[^\s]*)?$#', $back) === 1 ? $back : 'index.php';
+$back = Auth::isLocalPath($back) ? $back : 'index.php';
 $error = null;
 $email = '';
 
