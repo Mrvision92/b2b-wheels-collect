@@ -12,6 +12,7 @@ use Bwc\Admin\Access;
 use Bwc\Admin\AdminStore;
 use Bwc\Admin\Auth;
 use Bwc\Admin\View;
+use Bwc\App;
 use Bwc\Http;
 use Bwc\Log;
 
@@ -21,6 +22,8 @@ $token = (string) ($_GET['jeton'] ?? $_POST['jeton'] ?? '');
 $admin = $token !== '' ? $store->findByToken($token) : null;
 $error = null;
 $done = null;
+$demoLink = null;
+$demo = App::mailer()->kind() === 'demo';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Auth::checkCsrf($_POST['csrf'] ?? null)) {
@@ -48,7 +51,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $found = $store->findByEmail((string) ($_POST['email'] ?? ''));
             if ($found !== null && $found['active']) {
                 try {
-                    Access::send($found, false);
+                    $sentToken = Access::send($found, false);
+                    // Mode démonstration : aucun email ne part, le lien est montré ici pour essayer.
+                    $demoLink = $demo ? 'mot-de-passe.php?jeton=' . rawurlencode($sentToken) : null;
                 } catch (\Throwable $exception) {
                     Log::error('admin.reset_mail_failed', ['admin' => $found['id'], 'error' => $exception->getMessage()]);
                 }
@@ -69,12 +74,15 @@ if ($token !== '' && $admin === null && $_SERVER['REQUEST_METHOD'] !== 'POST'): 
       <input type="hidden" name="jeton" value="<?= View::e($token) ?>">
 <?php if ($error): ?>      <p class="flash flash-error" role="alert"><?= View::e($error) ?></p>
 <?php endif ?>
-      <div class="field"><label for="password">Nouveau mot de passe</label><input id="password" name="password" type="password" class="input" autocomplete="new-password" minlength="<?= AdminStore::MIN_PASSWORD_LENGTH ?>" required autofocus><p class="hint"><?= AdminStore::MIN_PASSWORD_LENGTH ?> caractères minimum.</p></div>
-      <div class="field"><label for="confirm">Confirmez le mot de passe</label><input id="confirm" name="confirm" type="password" class="input" autocomplete="new-password" required></div>
+      <div class="field"><label for="password">Nouveau mot de passe</label><?= View::passwordField('password', 'password', 'new-password', 'minlength="' . AdminStore::MIN_PASSWORD_LENGTH . '" required autofocus') ?><p class="hint"><?= AdminStore::MIN_PASSWORD_LENGTH ?> caractères minimum.</p></div>
+      <div class="field"><label for="confirm">Confirmez le mot de passe</label><?= View::passwordField('confirm', 'confirm', 'new-password', 'required') ?></div>
       <button class="btn btn-primary btn-wide btn-tall">Enregistrer et me connecter</button>
     </form>
 <?php elseif ($done): ?>
     <p class="flash flash-ok" role="status"><?= View::e($done) ?></p>
+<?php if ($demoLink): ?>
+    <p class="flash flash-demo">Mode démonstration : aucun email réel n'est envoyé. <a href="<?= View::e($demoLink) ?>">Ouvrir le lien de l'email</a></p>
+<?php endif ?>
     <p class="auth-link"><a href="connexion.php">Retour à la connexion</a></p>
 <?php else: ?>
     <form method="post" class="auth-form" novalidate>

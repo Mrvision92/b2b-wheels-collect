@@ -38,6 +38,7 @@ final class Notifications
         private Mailer $mailer,
         private ?CalendarClient $calendar,
         private Config $config,
+        private ?PhotoStore $photos = null,
     ) {
     }
 
@@ -155,6 +156,10 @@ final class Notifications
     {
         if ($notification['status'] !== 'pending' && $notification['status'] !== 'failed') {
             return $notification;
+        }
+        // Les photos sont enregistrées : un nouvel essai de la notification VBM les joint aussi.
+        if ($notification['kind'] === 'vbm_notification' && $attachments === [] && $this->photos !== null) {
+            $attachments = $this->photos->attachments((int) $b['id']);
         }
         $email = $this->render($notification['kind'], $b, $attachments !== []) + [
             'to' => array_map('trim', explode(',', $notification['recipients'])),

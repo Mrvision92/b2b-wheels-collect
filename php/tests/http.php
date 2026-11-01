@@ -335,6 +335,7 @@ test('administration : réservation du site visible, jeton CSRF obligatoire, « 
     $csv = browse('GET', '/admin/export.php?tab=enleves', $jar);
     ok(str_starts_with($csv['body'], "\xEF\xBB\xBFRéférence;Statut;"), 'en-tête CSV pour Excel');
     contains($csv['body'], "$reference;Enlevé;");
+    ok(!str_contains($csv['body'], "'+32"), 'téléphones lisibles dans Excel');
 });
 
 test('administration : compte désactivé ou mot de passe changé = session fermée', function () {
@@ -349,4 +350,50 @@ test('administration : compte désactivé ou mot de passe changé = session ferm
     eq(browse('GET', '/admin/', $jar)['status'], 200);
     (new Bwc\Admin\AdminStore(Bwc\Database::pdo()))->setActive($adminId, false);
     eq(browse('GET', '/admin/', $jar)['status'], 302, 'compte désactivé');
+});
+
+test('photos du site : enregistrées, visibles dans l\'administration seulement', function () {
+    resetDatabase();
+    createAdmin();
+    [$date, $slot] = firstFreeSlot();
+    $response = http('POST', '/api/bookings.php', ['form' => formFor(bookingInput(['date' => $date, 'slot' => $slot, 'phone' => '0470 12 34 56', 'rimCount' => '2']), [['jante.png', 'image/png', pngBytes()]])]);
+    eq($response['status'], 201);
+    $photo = Bwc\Database::pdo()->query('SELECT * FROM bwc_booking_photos')->fetch();
+    eq([$photo['file_name'], $photo['content_type']], ['photo-1.png', 'image/png']);
+
+    $anonymous = (string) tempnam(sys_get_temp_dir(), 'bwc-jar');
+    eq(browse('GET', "/admin/photo.php?id={$photo['id']}", $anonymous)['status'], 401, 'sans connexion');
+    [$jar] = login('vbm@test.local', 'Mot-de-passe-solide-1');
+    $image = browse('GET', "/admin/photo.php?id={$photo['id']}", $jar);
+    eq($image['status'], 200);
+    contains($image['headers'], 'Content-Type: image/png');
+    ok(str_starts_with($image['body'], "\x89PNG"), 'image intacte');
+    $details = json_decode(browse('GET', "/admin/api.php?action=booking&id={$photo['booking_id']}", $jar)['body'], true);
+    contains($details['html'], "photo.php?id={$photo['id']}");
+    eq(browse('GET', '/admin/photo.php?id=999999', $jar)['status'], 404);
+});
+
+test('export de tous les garages et mot de passe oublié jusqu\'au bout (mode démonstration)', function () {
+    resetDatabase();
+    createAdmin();
+    [$jar] = login('vbm@test.local', 'Mot-de-passe-solide-1');
+    http('POST', '/api/bookings.php', ['form' => formFor(bookingInput(['phone' => '0470 12 34 56', 'garageName' => 'Garage Export', 'date' => firstFreeSlot()[0], 'slot' => firstFreeSlot()[1]]))]);
+    $csv = browse('GET', '/admin/export.php?quoi=garages', $jar);
+    ok(str_starts_with($csv['body'], "\xEF\xBB\xBFGarage;Contact;Téléphone;Email;"), 'en-tête');
+    contains($csv['body'], '"Garage Export";"Marie Dupont";"0470 12 34 56";');
+
+    $fresh = (string) tempnam(sys_get_temp_dir(), 'bwc-jar');
+    $form = browse('GET', '/admin/mot-de-passe.php', $fresh);
+    $sent = browse('POST', '/admin/mot-de-passe.php', $fresh, ['body' => http_build_query(['csrf' => csrfFrom($form['body']), 'email' => 'vbm@test.local']), 'headers' => ['Content-Type: application/x-www-form-urlencoded']]);
+    contains($sent['body'], 'Si cette adresse correspond à un compte');
+    preg_match('/href="(mot-de-passe\.php\?jeton=[^"]+)"/', $sent['body'], $m);
+    ok(isset($m[1]), 'lien montré en démonstration');
+    $page = browse('GET', '/admin/' . html_entity_decode($m[1]), $fresh);
+    contains($page['body'], 'Choisissez votre mot de passe.');
+    $done = browse('POST', '/admin/mot-de-passe.php', $fresh, ['body' => http_build_query(['csrf' => csrfFrom($page['body']), 'jeton' => explode('jeton=', html_entity_decode($m[1]))[1], 'password' => 'Nouveau-mot-de-passe-3', 'confirm' => 'Nouveau-mot-de-passe-3']), 'headers' => ['Content-Type: application/x-www-form-urlencoded']]);
+    eq($done['status'], 302, 'connecté après le nouveau mot de passe');
+    eq(browse('GET', '/admin/', $jar)['status'], 302, 'l\'ancienne session est fermée');
+    eq(browse('GET', '/admin/' . html_entity_decode($m[1]), $fresh)['body'] !== '' && str_contains(browse('GET', '/admin/' . html_entity_decode($m[1]), (string) tempnam(sys_get_temp_dir(), 'j'))['body'], "n'est plus valable"), true, 'lien à usage unique');
+    [, $old] = login('vbm@test.local', 'Mot-de-passe-solide-1');
+    contains($old['body'], 'incorrect');
 });

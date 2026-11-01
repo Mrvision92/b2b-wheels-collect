@@ -51,7 +51,7 @@ ob_start(); ?>
       <div class="field"><label for="key">Clé d'installation (app/config.php)</label><input id="key" name="key" type="password" class="input" required></div>
       <div class="field"><label for="name">Nom</label><input id="name" name="name" class="input" value="Équipe VBM" required></div>
       <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" class="input" autocomplete="username" required></div>
-      <div class="field"><label for="password">Mot de passe</label><input id="password" name="password" type="password" class="input" autocomplete="new-password" minlength="<?= AdminStore::MIN_PASSWORD_LENGTH ?>" required><p class="hint"><?= AdminStore::MIN_PASSWORD_LENGTH ?> caractères minimum.</p></div>
+      <div class="field"><label for="password">Mot de passe</label><?= View::passwordField('password', 'password', 'new-password', 'minlength="' . AdminStore::MIN_PASSWORD_LENGTH . '" required') ?><p class="hint"><?= AdminStore::MIN_PASSWORD_LENGTH ?> caractères minimum.</p></div>
       <button class="btn btn-primary btn-wide btn-tall">Créer le compte</button>
     </form>
 <?php

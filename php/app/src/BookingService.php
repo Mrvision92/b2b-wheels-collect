@@ -411,6 +411,33 @@ final class BookingService
         return $outcome;
     }
 
+    /**
+     * « Marquer enlevé » fait par erreur : l'enlèvement redevient « à enlever ».
+     * L'email d'enlèvement déjà parti ne sera pas renvoyé si on le marque de nouveau.
+     */
+    public function reopen(int $id, int $adminId): array
+    {
+        return $this->transition($id, ['completed'], 'confirmed', [
+            'completed_at' => null,
+            'completed_by' => null,
+        ], 'reopened', 'Marquage « enlevé » annulé', $adminId);
+    }
+
+    /** Note interne de VBM (jamais envoyée au garage). */
+    public function setNote(int $id, string $note, int $adminId): array
+    {
+        $note = mb_substr(trim((string) preg_replace('/[\x00-\x09\x0B-\x1F\x7F]+/u', ' ', $note)), 0, 1000);
+        $booking = $this->store->find($id);
+        if ($booking === null) {
+            return self::fail('not_found', 'Enlèvement introuvable.');
+        }
+        if ($booking['internal_note'] !== $note) {
+            $this->store->update($id, ['internal_note' => $note]);
+            $this->store->log($id, 'note', $booking['status'], $booking['status'], $note === '' ? 'Note interne effacée' : 'Note interne modifiée', $adminId);
+        }
+        return ['ok' => true, 'booking' => $this->store->find($id)];
+    }
+
     /** Réservation en attente validée par VBM : le garage reçoit sa confirmation. */
     public function confirm(int $id, int $adminId, bool $notifyGarage = true): array
     {

@@ -19,7 +19,7 @@ final class BookingStore
     private const COLUMNS = [
         'reference', 'request_hash', 'garage_id', 'source', 'status', 'slot_date', 'slot_key', 'start_time', 'end_time',
         'starts_at', 'ends_at', 'slot_mode', 'garage_name', 'contact_name', 'phone', 'email', 'street', 'postal_code', 'city',
-        'rim_count', 'garage_reference', 'comment', 'photo_count', 'google_event_id', 'google_status', 'google_link',
+        'rim_count', 'garage_reference', 'comment', 'internal_note', 'photo_count', 'google_event_id', 'google_status', 'google_link',
         'google_tries', 'google_synced_at', 'created_by', 'completed_at', 'completed_by', 'cancelled_at', 'cancelled_by',
         'cancel_reason', 'created_at',
     ];

@@ -6,6 +6,7 @@
  * @var list<array<string, mixed>> $notifications
  * @var list<array<string, mixed>> $history
  * @var array<string, string> $adminNames
+ * @var list<array<string, mixed>> $photos
  * @var bool $calendarOn
  * @var int $now
  * @var string $today
@@ -18,6 +19,7 @@ $open = in_array($b['status'], ['pending', 'confirmed'], true);
 $actions = [
     'created' => 'Réservation créée', 'updated' => 'Informations modifiées', 'rescheduled' => 'Créneau modifié',
     'confirmed' => 'Confirmé', 'completed' => 'Marqué enlevé', 'cancelled' => 'Annulé',
+    'reopened' => 'Remis « à enlever »', 'note' => 'Note interne', 'erased' => 'Données effacées',
 ];
 $who = static fn ($id): string => $id !== null && isset($adminNames[(int) $id]) ? ' par ' . $adminNames[(int) $id] : '';
 ?>
@@ -43,6 +45,23 @@ $who = static fn ($id): string => $id !== null && isset($adminNames[(int) $id]) 
     <p class="when-slot"><?= View::e(View::range($b)) ?> · <?= View::e(View::rims($b['rim_count'])) ?></p>
   </div>
 
+<?php if ($photos !== []): ?>
+  <section class="details-photos" aria-labelledby="photos-<?= $b['id'] ?>">
+    <h4 id="photos-<?= $b['id'] ?>"><?= View::icon('camera', 'icon icon-sm') ?>Photos du garage (<?= count($photos) ?>)</h4>
+    <div class="photo-grid" data-gallery>
+<?php foreach ($photos as $i => $photo): $url = 'photo.php?id=' . (int) $photo['id']; ?>
+<?php if ($photo['content_type'] === 'image/heic'): ?>
+      <a class="photo-thumb photo-file" href="<?= $url ?>&amp;telecharger=1" title="Format HEIC (iPhone) : s'ouvre après téléchargement"><?= View::icon('camera') ?><span>HEIC</span><small>Télécharger</small></a>
+<?php else: ?>
+      <a class="photo-thumb" href="<?= $url ?>" target="_blank" rel="noopener" data-photo="<?= $url ?>" data-index="<?= $i ?>"><img src="<?= $url ?>" alt="Photo <?= $i + 1 ?> envoyée par <?= View::e($b['garage_name']) ?>" loading="lazy"></a>
+<?php endif ?>
+<?php endforeach ?>
+    </div>
+  </section>
+<?php elseif ($b['photo_count'] > 0): ?>
+  <p class="state-note state-info"><?= View::icon('camera', 'icon icon-sm') ?><?= $b['photo_count'] ?> photo<?= $b['photo_count'] > 1 ? 's' : '' ?> envoyée<?= $b['photo_count'] > 1 ? 's' : '' ?> par email à VBM avant l'affichage des photos dans l'administration.</p>
+<?php endif ?>
+
   <dl class="info">
     <div><dt>Contact</dt><dd><?= View::e($b['contact_name']) ?></dd></div>
     <div><dt>Téléphone</dt><dd><a href="tel:<?= View::e($b['phone']) ?>"><?= View::e(View::phone($b['phone'])) ?></a></dd></div>
@@ -52,9 +71,6 @@ $who = static fn ($id): string => $id !== null && isset($adminNames[(int) $id]) 
     <div><dt>Réf. du garage</dt><dd><?= View::e($b['garage_reference']) ?></dd></div>
 <?php endif ?>
     <div><dt>Instructions</dt><dd class="pre"><?= View::e($b['comment'] !== '' ? $b['comment'] : '—') ?></dd></div>
-<?php if ($b['photo_count'] > 0): ?>
-    <div><dt>Photos</dt><dd><?= $b['photo_count'] ?> photo<?= $b['photo_count'] > 1 ? 's' : '' ?> jointe<?= $b['photo_count'] > 1 ? 's' : '' ?> à l'email de notification VBM</dd></div>
-<?php endif ?>
     <div><dt>Reçue le</dt><dd><?= View::e(View::datetime($b['created_at'])) ?> · <?= $b['source'] === 'admin' ? 'saisie par VBM' . View::e($who($b['created_by'])) : 'site public' ?></dd></div>
 <?php if ($b['garage_id'] !== null): ?>
     <div><dt>Garage</dt><dd><a href="garage.php?id=<?= (int) $b['garage_id'] ?>">Voir la fiche du garage</a></dd></div>
@@ -74,10 +90,21 @@ $who = static fn ($id): string => $id !== null && isset($adminNames[(int) $id]) 
     </div>
   </div>
 <?php elseif ($b['status'] === 'completed'): ?>
-  <p class="state-note state-completed"><?= View::icon('check-circle', 'icon icon-sm') ?>Enlevé le <?= View::e(View::datetime($b['completed_at'])) ?><?= View::e($who($b['completed_by'])) ?>.</p>
+  <div class="state-block">
+    <p class="state-note state-completed"><?= View::icon('check-circle', 'icon icon-sm') ?>Enlevé le <?= View::e(View::datetime($b['completed_at'])) ?><?= View::e($who($b['completed_by'])) ?>.</p>
+    <button type="button" class="link-btn state-undo" data-action="reopen" data-id="<?= $b['id'] ?>" data-garage="<?= View::e($b['garage_name']) ?>">Marqué par erreur ? Remettre « à enlever »</button>
+  </div>
 <?php else: ?>
   <p class="state-note state-cancelled">Annulé le <?= View::e(View::datetime($b['cancelled_at'])) ?><?= View::e($who($b['cancelled_by'])) ?><?= $b['cancel_reason'] !== '' ? '. Motif : ' . View::e($b['cancel_reason']) : '' ?>.</p>
 <?php endif ?>
+
+  <section class="details-section">
+    <h4>Note interne</h4>
+    <form class="note-form" data-note="<?= $b['id'] ?>">
+      <textarea name="note" class="input" rows="2" maxlength="1000" placeholder="Visible uniquement par l'équipe VBM : chauffeur, accès, remarque…" aria-label="Note interne"><?= View::e($b['internal_note']) ?></textarea>
+      <div class="note-actions"><button type="submit" class="btn btn-outline btn-sm">Enregistrer la note</button></div>
+    </form>
+  </section>
 
   <section class="details-section">
     <h4>Emails</h4>

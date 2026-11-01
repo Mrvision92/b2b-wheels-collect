@@ -84,6 +84,14 @@ try {
     }
 
     $booking = $result['booking'];
+    if (!$result['alreadyExisted'] && $photos['photos'] !== []) {
+        // Photos visibles dans l'administration ; la réservation tient même si l'enregistrement échoue.
+        try {
+            App::photos()->save($booking['id'], $photos['photos']);
+        } catch (\Throwable $error) {
+            Log::error('photos.save_failed', ['reference' => $booking['reference'], 'error' => $error->getMessage()]);
+        }
+    }
     $demoEmails = App::mailer()->kind() === 'demo';
     Http::json([
         'ok' => true,

@@ -51,6 +51,9 @@ final class View
         'user' => '<circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c.8-3.8 3.6-6 7-6s6.2 2.2 7 6"/>',
         'logout' => '<path d="M14 4.5H6.5A1.5 1.5 0 0 0 5 6v12a1.5 1.5 0 0 0 1.5 1.5H14"/><path d="M10 12h10M16.5 8.5 20 12l-3.5 3.5"/>',
         'refresh' => '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4"/>',
+        'eye' => '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
+        'eye-off' => '<path d="M3 3l18 18M10.6 6a9.6 9.6 0 0 1 1.4-.1c6 0 9.5 6.1 9.5 6.1a17 17 0 0 1-2.7 3.4M6.3 7.4A16.6 16.6 0 0 0 2.5 12S6 18.5 12 18.5a9 9 0 0 0 4.3-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+        'camera' => '<path d="M4 8.5h3l1.5-2.5h7L17 8.5h3a1 1 0 0 1 1 1V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.3" r="3.3"/>',
     ];
 
     public static function e(?string $value): string
@@ -156,9 +159,35 @@ final class View
         return $e164 !== '' ? Phone::format($e164) : '';
     }
 
+    /** Téléphone pour Excel : « 0470 12 34 56 », ou « 0033… » à l'étranger (un « + » serait lu comme une formule). */
+    public static function phoneForExport(string $e164): string
+    {
+        if ($e164 === '') {
+            return '';
+        }
+        return str_starts_with($e164, '+32') ? '0' . substr(Phone::format($e164), 4) : '00' . substr($e164, 1);
+    }
+
     public static function mapsUrl(array $place): string
     {
         return 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode("{$place['street']}, {$place['postal_code']} {$place['city']}, Belgique");
+    }
+
+    /** Champ mot de passe avec le bouton « œil » pour afficher ce qui est tapé. */
+    public static function passwordField(string $id, string $name, string $autocomplete, string $attrs = ''): string
+    {
+        return '<div class="password-field"><input id="' . self::e($id) . '" name="' . self::e($name) . '" type="password" class="input" autocomplete="' . self::e($autocomplete) . '" ' . $attrs . '>'
+            . '<button type="button" class="password-toggle" aria-label="Afficher le mot de passe" aria-pressed="false" aria-controls="' . self::e($id) . '">'
+            . self::icon('eye', 'icon icon-show') . self::icon('eye-off', 'icon icon-hide') . '</button></div>';
+    }
+
+    /** Petit appareil photo et nombre de photos, à côté du nom du garage. */
+    public static function photoBadge(array $b): string
+    {
+        $count = (int) $b['photo_count'];
+        return $count > 0
+            ? ' <span class="photo-badge" title="' . $count . ' photo' . ($count > 1 ? 's' : '') . ' du garage">' . self::icon('camera', 'icon') . $count . '<span class="sr-only"> photo' . ($count > 1 ? 's' : '') . '</span></span>'
+            : '';
     }
 
     /* Statuts ------------------------------------------------------------ */
@@ -192,7 +221,12 @@ final class View
      */
     public static function render(string $template, array $vars, array $page): void
     {
-        $content = self::capture($template, $vars);
+        self::page(self::capture($template, $vars), $page);
+    }
+
+    /** Contenu déjà prêt, affiché dans le gabarit. */
+    public static function page(string $content, array $page): void
+    {
         $csrf = Auth::csrf();
         $config = App::config();
         $now = time();
@@ -225,14 +259,15 @@ final class View
         return $html . '</div>';
     }
 
-    /** Carte de chiffre clé ($caption est déjà échappée). */
-    public static function kpi(string $label, string $icon, string $value, string $caption, string $extraClass = '', string $mobileLabel = ''): string
+    /** Carte de chiffre clé ($caption est déjà échappée) ; avec $href, elle mène à la liste correspondante. */
+    public static function kpi(string $label, string $icon, string $value, string $caption, string $extraClass = '', string $mobileLabel = '', string $href = ''): string
     {
         $title = $mobileLabel !== ''
             ? '<span class="desktop-only">' . self::e($label) . '</span><span class="mobile-only">' . self::e($mobileLabel) . '</span>'
             : self::e($label);
-        return '<div class="kpi ' . $extraClass . '"><div class="kpi-head"><span>' . $title . '</span>' . self::icon($icon) . '</div>'
-            . '<p class="kpi-value">' . self::e($value) . '</p><p class="kpi-caption">' . $caption . '</p></div>';
+        $tag = $href !== '' ? 'a href="' . self::e($href) . '"' : 'div';
+        return '<' . $tag . ' class="kpi ' . ($href !== '' ? 'kpi-link ' : '') . $extraClass . '"><div class="kpi-head"><span>' . $title . '</span>' . self::icon($icon) . '</div>'
+            . '<p class="kpi-value">' . self::e($value) . '</p><p class="kpi-caption">' . $caption . '</p></' . ($href !== '' ? 'a' : 'div') . '>';
     }
 
     /** Nombre sur deux chiffres, comme sur les maquettes : « 04 ». */

@@ -218,7 +218,7 @@ HTML;
         if ($photoCount > 0) {
             $photosText = $photosAttached
                 ? $d['photos'] . ' ' . self::plural($photoCount, 'jointe') . ' à cet email'
-                : $d['photos'] . ' ' . self::plural($photoCount, 'envoyée') . ' par le garage mais non ' . self::plural($photoCount, 'jointe') . ' à ce renvoi : demandez-les au garage';
+                : $d['photos'] . ' ' . self::plural($photoCount, 'envoyée') . " par le garage : à voir dans l'administration";
         }
         $subject = preg_replace('/[\r\n]+/', ' ', "Nouvel enlèvement — {$b['garage_name']} — {$d['dateLong']}");
 

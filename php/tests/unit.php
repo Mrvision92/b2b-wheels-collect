@@ -229,7 +229,7 @@ test('notification VBM avec photos jointes, ou à demander après un renvoi', fu
     contains($first['html'], 'Ouvrir dans Google Agenda');
     contains($first['text'], 'Réf. du garage : DOSSIER-2041');
     $retry = Templates::vbmNotification(sampleBooking(), $ctx, false, false);
-    contains($retry['html'], 'demandez-les au garage');
+    contains($retry['html'], 'à voir dans l&apos;administration');
     contains($retry['html'], "n'a pas encore pu être envoyé au garage");
 });
 

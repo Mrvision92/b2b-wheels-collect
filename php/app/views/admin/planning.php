@@ -75,7 +75,7 @@ $eventClass = static fn (array $b): string => 'event event-' . (View::isOverdue(
         $length = (\Bwc\Time::toMinutes($b['end_time']) - \Bwc\Time::toMinutes($b['start_time'])) / 60; ?>
         <button type="button" class="<?= $eventClass($b) ?>" data-booking="<?= $b['id'] ?>" style="--start: <?= $start ?>; --len: <?= $length ?>; --lane: <?= $b['lane'] ?>; --lanes: <?= $b['lanes'] ?>">
           <span class="event-time"><?= View::e(View::range($b)) ?></span>
-          <strong><?= View::e($b['garage_name']) ?></strong>
+          <strong><?= View::e($b['garage_name']) ?><?= View::photoBadge($b) ?></strong>
           <span class="event-meta"><?= View::e($b['city']) ?> · <?= View::e(View::rims($b['rim_count'])) ?></span>
           <?= View::pill($b, $now) ?>
         </button>
@@ -88,7 +88,7 @@ $eventClass = static fn (array $b): string => 'event event-' . (View::isOverdue(
 <?php foreach ($days as $day): ?>
     <p class="group-title"><span><?= View::e(View::dayMonth($day)) ?></span><span class="muted"><?= count($byDate[$day] ?? []) ?> enlèvement<?= count($byDate[$day] ?? []) > 1 ? 's' : '' ?></span></p>
 <?php foreach ($byDate[$day] ?? [] as $b): ?>
-    <button type="button" class="timeline-card <?= $eventClass($b) ?>" data-booking="<?= $b['id'] ?>"><span class="event-time"><?= View::e(View::range($b)) ?></span><strong><?= View::e($b['garage_name']) ?></strong><span class="event-meta"><?= View::e($b['city']) ?> · <?= View::e(View::rims($b['rim_count'])) ?></span><?= View::pill($b, $now) ?></button>
+    <button type="button" class="timeline-card <?= $eventClass($b) ?>" data-booking="<?= $b['id'] ?>"><span class="event-time"><?= View::e(View::range($b)) ?></span><strong><?= View::e($b['garage_name']) ?><?= View::photoBadge($b) ?></strong><span class="event-meta"><?= View::e($b['city']) ?> · <?= View::e(View::rims($b['rim_count'])) ?></span><?= View::pill($b, $now) ?></button>
 <?php endforeach ?>
 <?php endforeach ?>
   </div>
@@ -100,8 +100,15 @@ $eventClass = static fn (array $b): string => 'event event-' . (View::isOverdue(
 <?php endforeach ?>
   </div>
   <div class="day-view">
-    <h3 class="day-title"><?= View::e(View::dayMonth($date)) ?></h3>
-    <p class="day-meta"><?= $count ?> enlèvement<?= $count > 1 ? 's' : '' ?> · <?= $rims ?> jante<?= $rims > 1 ? 's' : '' ?></p>
+    <div class="day-head">
+      <div>
+        <h3 class="day-title"><?= View::e(View::dayMonth($date)) ?></h3>
+        <p class="day-meta"><?= $count ?> enlèvement<?= $count > 1 ? 's' : '' ?> · <?= $rims ?> jante<?= $rims > 1 ? 's' : '' ?></p>
+      </div>
+<?php if ($count > 0): ?>
+      <a class="btn btn-outline" href="feuille-de-route.php?date=<?= View::e($date) ?>"><?= View::icon('pin', 'icon icon-sm') ?>Feuille de route</a>
+<?php endif ?>
+    </div>
 <?php if (($byDate[$date] ?? []) === []): ?>
     <p class="empty">Aucun enlèvement ce jour-là.</p>
 <?php else: ?>
@@ -112,7 +119,7 @@ $eventClass = static fn (array $b): string => 'event event-' . (View::isOverdue(
         <span class="timeline-dot dot-<?= View::isOverdue($b, $now) ? 'late' : $b['status'] ?>" aria-hidden="true"></span>
         <button type="button" class="timeline-card <?= $eventClass($b) ?>" data-booking="<?= $b['id'] ?>">
           <span class="event-time"><?= View::e(View::range($b)) ?></span>
-          <strong><?= View::e($b['garage_name']) ?></strong>
+          <strong><?= View::e($b['garage_name']) ?><?= View::photoBadge($b) ?></strong>
           <span class="event-meta"><?= View::e($b['city']) ?> · <?= View::e(View::rims($b['rim_count'])) ?></span>
           <?= View::pill($b, $now) ?>
         </button>

@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS bwc_bookings (
   rim_count         SMALLINT UNSIGNED NOT NULL,
   garage_reference  VARCHAR(60)  NOT NULL DEFAULT '' COMMENT 'Référence propre au garage (facultative)',
   comment           VARCHAR(500) NOT NULL DEFAULT '',
+  internal_note     VARCHAR(1000) NOT NULL DEFAULT '' COMMENT 'Note interne de VBM, jamais envoyée au garage',
   photo_count       TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Photos jointes à l''email VBM (non conservées)',
 
   google_event_id   VARCHAR(64)  NOT NULL COMMENT 'Identifiant de l''événement Google Agenda',
@@ -141,6 +142,21 @@ CREATE TABLE IF NOT EXISTS bwc_notifications (
   CONSTRAINT fk_bwc_notifications_booking FOREIGN KEY (booking_id) REFERENCES bwc_bookings (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Photos jointes par les garages, visibles dans l'administration. Les
+-- fichiers sont dans app/storage/photos/<réservation>/, hors de public_html.
+CREATE TABLE IF NOT EXISTS bwc_booking_photos (
+  id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  booking_id   INT UNSIGNED NOT NULL,
+  position     TINYINT UNSIGNED NOT NULL COMMENT '1 à 5, dans l''ordre choisi par le garage',
+  file_name    VARCHAR(40)  NOT NULL COMMENT 'ex. photo-1.jpg, dans app/storage/photos/<booking_id>/',
+  content_type VARCHAR(30)  NOT NULL,
+  size_bytes   INT UNSIGNED NOT NULL,
+  created_at   DATETIME     NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_bwc_photo_position (booking_id, position),
+  CONSTRAINT fk_bwc_photos_booking FOREIGN KEY (booking_id) REFERENCES bwc_bookings (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Une ligne par jour réservé, verrouillée pendant l'enregistrement d'une
 -- réservation : deux garages ne peuvent pas prendre la dernière place d'un
 -- créneau au même instant.
@@ -164,4 +180,4 @@ CREATE TABLE IF NOT EXISTS bwc_migrations (
   PRIMARY KEY (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO bwc_migrations (name, applied_at) VALUES ('001_admin_panel', UTC_TIMESTAMP());
+INSERT IGNORE INTO bwc_migrations (name, applied_at) VALUES ('001_admin_panel', UTC_TIMESTAMP()), ('002_booking_photos', UTC_TIMESTAMP()), ('003_internal_notes', UTC_TIMESTAMP());

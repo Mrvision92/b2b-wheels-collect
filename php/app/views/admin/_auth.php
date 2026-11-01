@@ -19,6 +19,7 @@ use Bwc\Admin\View;
   <title><?= View::e($title) ?> — B2B Wheels Collect</title>
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="<?= View::asset('assets/admin.css') ?>">
+  <script src="<?= View::asset('assets/password.js') ?>" defer></script>
 </head>
 <body class="auth-page">
   <main class="auth">

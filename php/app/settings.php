@@ -59,8 +59,9 @@ return [
     ],
 
     // Conservation des données personnelles (RGPD). Après ce nombre de mois,
-    // la tâche quotidienne efface le contact, le téléphone, l'email, la rue et
-    // le commentaire des enlèvements terminés ou annulés ; les chiffres restent.
+    // la tâche quotidienne efface le contact, le téléphone, l'email, la rue, le
+    // commentaire et les photos des enlèvements terminés ou annulés ; les
+    // chiffres restent.
     // null = rien n'est effacé automatiquement (à décider par VBM).
     'data_retention_months' => null,
 ];

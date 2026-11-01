@@ -290,7 +290,7 @@ function field(string $id, string $label, string $input, bool $optional = false)
       </section>
       <section>
         <h3>Données collectées</h3>
-        <div><p>Nom du garage, nom et prénom de la personne de contact, téléphone, adresse email, adresse d&apos;enlèvement, nombre de jantes, date et créneau choisis, ainsi que la référence, le commentaire et les photos éventuels. Aucune autre donnée n&apos;est demandée. Les photos sont transmises par email à l&apos;atelier et ne sont pas conservées sur le site.</p></div>
+        <div><p>Nom du garage, nom et prénom de la personne de contact, téléphone, adresse email, adresse d&apos;enlèvement, nombre de jantes, date et créneau choisis, ainsi que la référence, le commentaire et les photos éventuels. Aucune autre donnée n&apos;est demandée. Les photos sont transmises à l&apos;atelier et conservées avec la réservation, dans l&apos;espace sécurisé réservé à l&apos;équipe de VBM.</p></div>
       </section>
       <section>
         <h3>Utilisation</h3>

@@ -44,7 +44,10 @@ final class Api
                 'POST confirm' => fn () => $this->confirm((int) ($body['id'] ?? 0), (bool) ($body['notify'] ?? true)),
                 'POST cancel' => fn () => $this->cancel((int) ($body['id'] ?? 0), (string) ($body['reason'] ?? ''), (bool) ($body['notify'] ?? true)),
                 'POST resend' => fn () => $this->resend((int) ($body['id'] ?? 0)),
+                'POST reopen' => fn () => $this->reopen((int) ($body['id'] ?? 0)),
+                'POST note' => fn () => $this->note((int) ($body['id'] ?? 0), (string) ($body['note'] ?? '')),
                 'POST garage-update' => fn () => $this->garageUpdate($body),
+                'POST garage-erase' => fn () => $this->garageErase((int) ($body['id'] ?? 0)),
                 'POST garage-merge' => fn () => $this->garageMerge((int) ($body['source'] ?? 0), (int) ($body['target'] ?? 0)),
                 default => null,
             };
@@ -82,9 +85,9 @@ final class Api
             $names[(int) $a['id']] = $a['name'];
         }
         ob_start();
-        (static function (array $b, array $notifications, array $history, array $adminNames, bool $calendarOn, int $now, string $today): void {
+        (static function (array $b, array $notifications, array $history, array $photos, array $adminNames, bool $calendarOn, int $now, string $today): void {
             require BWC_APP_DIR . '/views/admin/_details.php';
-        })($b, App::notifications()->forBooking($id), App::store()->history($id), $names, App::calendar() !== null, $now, Time::dateOf($now));
+        })($b, App::notifications()->forBooking($id), App::store()->history($id), App::photos()->forBooking($id), $names, App::calendar() !== null, $now, Time::dateOf($now));
         Http::json([
             'html' => (string) ob_get_clean(),
             'booking' => [
@@ -214,6 +217,26 @@ final class Api
         Http::json(['ok' => true, 'id' => $id, 'message' => self::emailMessage($result['notification'], 'Enlèvement annulé')]);
     }
 
+    private function reopen(int $id): void
+    {
+        $result = App::bookings()->reopen($id, $this->adminId());
+        if (!$result['ok']) {
+            Http::json(['error' => $result['code'], 'message' => $result['message']], 409);
+            return;
+        }
+        Http::json(['ok' => true, 'id' => $id, 'message' => 'L’enlèvement est de nouveau « à enlever ».']);
+    }
+
+    private function note(int $id, string $note): void
+    {
+        $result = App::bookings()->setNote($id, $note, $this->adminId());
+        if (!$result['ok']) {
+            Http::json(['error' => $result['code'], 'message' => $result['message']], 404);
+            return;
+        }
+        Http::json(['ok' => true, 'id' => $id, 'message' => 'Note enregistrée.']);
+    }
+
     private function resend(int $notificationId): void
     {
         $result = App::notifications()->retryNow($notificationId);
@@ -262,6 +285,16 @@ final class Api
         App::garages()->update($id, $fields);
         Log::info('admin.garage_updated', ['garage' => $id, 'admin' => $this->adminId()]);
         Http::json(['ok' => true, 'message' => 'Fiche du garage enregistrée.']);
+    }
+
+    private function garageErase(int $id): void
+    {
+        if (App::garages()->find($id) === null) {
+            Http::json(['error' => 'not_found', 'message' => 'Garage introuvable.'], 404);
+            return;
+        }
+        $result = App::garages()->erase($id, App::photos(), $this->adminId());
+        Http::json($result + ['error' => $result['ok'] ? null : 'open_bookings'], $result['ok'] ? 200 : 409);
     }
 
     private function garageMerge(int $source, int $target): void

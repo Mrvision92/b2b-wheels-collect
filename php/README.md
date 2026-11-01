@@ -12,7 +12,7 @@ Le site de réservation et son administration, en **HTML, CSS, JavaScript, PHP e
 1. Un garage réserve sur le site public : coordonnées, adresse, nombre de jantes, date, créneau, photos.
 2. La réservation est vérifiée puis enregistrée dans MySQL, la journée verrouillée pour éviter toute surréservation.
 3. Le garage reçoit sa confirmation, VBM reçoit une notification avec les photos.
-4. La réservation apparaît aussitôt dans l'administration (`/admin`) : vue d'ensemble, liste, planning, fiche du garage.
+4. La réservation apparaît aussitôt dans l'administration (`/admin`), photos comprises : vue d'ensemble, liste, planning, fiche du garage.
 5. L'enlèvement est copié dans Google Agenda si l'agenda est connecté.
 6. Une fois les jantes récupérées, VBM clique sur « Marquer enlevé ».
 7. Le garage reçoit un email confirmant que ses jantes ont été récupérées. Les statistiques et l'historique du garage se mettent à jour.
@@ -47,7 +47,8 @@ php/
 ├── public_html/                → à déposer dans public_html (seule partie visible sur Internet)
 │   ├── index.php               site public : la page et le formulaire
 │   ├── api/                    disponibilités, réservation, état des services (JSON)
-│   ├── admin/                  administration : pages, actions (api.php), export CSV
+│   ├── admin/                  administration : pages, actions (api.php), exports CSV, photos (photo.php),
+│   │                           feuille de route, sauvegarde à télécharger
 │   ├── demo/email.php          aperçu des emails en mode démonstration
 │   ├── assets/                 CSS, JavaScript, police Mona Sans, photo de la camionnette
 │   ├── _bootstrap.php          emplacement du dossier app/ (à adapter seulement s'il change)
@@ -61,7 +62,7 @@ php/
 │   ├── views/admin/            gabarits des pages de l'administration
 │   ├── cron/                   notifications.php (toutes les 15 min), maintenance.php (chaque nuit)
 │   ├── tools/                  check.php, migrate.php, admin.php, seed-demo.php (ligne de commande)
-│   └── storage/                journaux, sessions, sauvegardes, cache (créé tout seul)
+│   └── storage/                photos, journaux, sessions, sauvegardes, cache (créé tout seul)
 └── tests/                      tests automatiques (pas à déposer)
 ```
 
@@ -118,13 +119,24 @@ Adresse : `https://votre-domaine.be/admin/`. Elle s'utilise sur ordinateur comme
 
 **Vue d'ensemble** : chiffres du jour et du mois, activité des six derniers mois, prochaines collectes, enlèvements du jour avec le bouton « Marquer enlevé ». Cliquer sur un mois du graphique affiche ses chiffres. Un bandeau signale les enlèvements passés qui n'ont pas encore été marqués.
 
-**Enlèvements** : toutes les réservations, celles du site comme celles saisies par VBM. Filtres Tous, Aujourd'hui, À enlever, Enlevés et Annulés ; recherche par garage, référence, ville, contact, email ou téléphone ; tri, pagination et export CSV (Excel). Le panneau de détail permet d'appeler le garage, de lui écrire, d'ouvrir l'itinéraire, et de modifier, annuler, confirmer ou marquer comme enlevé. On y voit aussi l'état de chaque email, avec un bouton « Renvoyer » en cas d'échec, et l'historique complet.
+**Photos** : les photos jointes par le garage s'affichent dans le détail de l'enlèvement ; un clic les ouvre en grand, avec des flèches ou en glissant du doigt sur téléphone. Un petit appareil photo, suivi du nombre de photos, signale les enlèvements qui en ont, dans les listes, le planning et la feuille de route. Les photos restent hors de `public_html`, dans `app/storage/photos`, et ne s'ouvrent qu'avec une session d'administration. Les photos au format HEIC (iPhone) que le navigateur n'a pas pu convertir se téléchargent au lieu de s'afficher.
 
-**Garages clients** : l'annuaire se remplit tout seul. Une réservation est rattachée au garage choisi par VBM ; sinon au garage qui a la **même adresse email** ; sinon, faute d'email, au garage qui a le même téléphone et le même nom. Deux garages aux noms proches ne sont jamais fusionnés automatiquement : depuis la fiche du garage, VBM peut corriger les coordonnées, ajouter des notes, voir les autres contacts et adresses utilisés, fusionner un doublon ou créer un enlèvement prérempli.
+**Enlèvements** : toutes les réservations, celles du site comme celles saisies par VBM. Filtres Tous, Aujourd'hui, À enlever, Enlevés et Annulés ; recherche par garage, référence, ville, contact, email ou téléphone ; tri, pagination et export CSV (Excel). Le panneau de détail permet d'appeler le garage, de lui écrire, d'ouvrir l'itinéraire, et de modifier, annuler, confirmer ou marquer comme enlevé. On y voit aussi les photos, une **note interne** (jamais montrée au garage), l'état de chaque email avec un bouton « Renvoyer » en cas d'échec, et l'historique complet. Un « Marquer enlevé » fait par erreur s'annule avec « Remettre à enlever » : l'email déjà envoyé au garage n'est jamais renvoyé.
 
-**Planning** : vues jour, semaine et mois, avec les enlèvements placés à leur heure réelle. Plusieurs garages sur le même créneau s'affichent côte à côte, dans la limite des places configurées. Sur téléphone, le planning s'ouvre sur la journée.
+**Garages clients** : l'annuaire se remplit tout seul. Une réservation est rattachée au garage choisi par VBM ; sinon au garage qui a la **même adresse email** ; sinon, faute d'email, au garage qui a le même téléphone et le même nom. Deux garages aux noms proches ne sont jamais fusionnés automatiquement : depuis la fiche du garage, VBM peut corriger les coordonnées, ajouter des notes, voir les autres contacts et adresses utilisés, fusionner un doublon ou créer un enlèvement prérempli. **Exporter (CSV)** donne tous les garages avec leur activité. À la demande d'un garage, **Effacer les données** supprime son nom, ses contacts, ses adresses, ses commentaires et ses photos sur toutes ses réservations (droit à l'effacement), en gardant les chiffres.
+
+**Planning** : vues jour, semaine et mois, avec les enlèvements placés à leur heure réelle. Plusieurs garages sur le même créneau s'affichent côte à côte, dans la limite des places configurées. Sur téléphone, le planning s'ouvre sur la journée. La **feuille de route** d'une journée liste les enlèvements dans l'ordre, avec adresses, téléphones, instructions et notes. Elle s'imprime (une case « Enlevé » à cocher pour le chauffeur) et ouvre la tournée dans Google Maps, dans l'ordre des créneaux et jusqu'à 10 adresses.
 
 **Nouvel enlèvement** (bouton présent sur chaque page) : choisir un garage existant ou en saisir un nouveau, le nombre de jantes, une date puis un créneau libre (les places restantes sont affichées). Ces enlèvements suivent exactement les mêmes règles que le site public, avec deux différences : VBM peut réserver plus tard dans la journée, sans le délai de 12 h, et l'email du garage est facultatif (réservation prise par téléphone).
+
+**Vue d'ensemble** : les chiffres sont cliquables et ouvrent la liste correspondante.
+
+**Mon compte** :
+- changement de mot de passe, déconnexion et invitation d'autres personnes de VBM ;
+- **État du service** : emails en attente ou en échec, Google Agenda, dernier passage de la tâche planifiée, dernière sauvegarde, mises à jour de la base, mentions légales ;
+- **Vos données** : export CSV de tous les garages et de tous les enlèvements, et téléchargement d'une sauvegarde complète.
+
+**Connexion** : chaque champ de mot de passe a un « œil » pour afficher ce qui est tapé. « Mot de passe oublié ? » envoie un lien valable une heure. En mode démonstration, aucun email ne part : le lien s'affiche directement sur la page, pour essayer.
 
 **Statuts** :
 
@@ -198,12 +210,14 @@ Tout est dans `app/settings.php`, commenté en français : jours et plages d'ouv
 - **Aucun mot de passe dans le code** : les accès sont dans `app/config.php`, hors de `public_html`, jamais versionnés. Aucune clé n'est envoyée au navigateur.
 - Requêtes SQL préparées, textes échappés, en-têtes de sécurité stricts (CSP), refus des envois depuis un autre site, champ piège anti-robots, limite de réservations et d'actions par connexion, Cloudflare Turnstile en option.
 - Journaux dans `app/storage/logs`, sans donnée personnelle (références uniquement).
+- Photos hors de `public_html` (`app/storage/photos`), servies uniquement par `admin/photo.php` à un administrateur connecté.
 
 ## 8. Sauvegardes et restauration
 
 - **Chaque nuit**, `app/cron/maintenance.php` sauvegarde toutes les tables dans `app/storage/backups` (fichier `.sql.gz`, les 14 dernières gardées). Une sauvegarde est aussi faite avant chaque migration.
 - **Hostinger** fait en plus ses propres sauvegardes (hPanel → Fichiers → Sauvegardes ; leur fréquence dépend de l'offre).
-- **Copie hors du serveur** : téléchargez de temps en temps une sauvegarde depuis le gestionnaire de fichiers.
+- **Copie hors du serveur** : depuis l'administration, **Mon compte → Télécharger une sauvegarde complète**, à faire de temps en temps.
+- **Photos** : elles sont dans `app/storage/photos`, pas dans la sauvegarde SQL. Les sauvegardes de fichiers de Hostinger les couvrent ; pour en garder une copie, téléchargez ce dossier depuis le gestionnaire de fichiers.
 - **Restaurer** : phpMyAdmin → la base → **Importer** → choisir le fichier `.sql.gz`. Les tables sont recréées telles qu'au moment de la sauvegarde. Faites-le de préférence site en maintenance, puis relancez `php app/tools/check.php`.
 
 ## 9. RGPD : ce que VBM doit compléter
@@ -211,10 +225,11 @@ Tout est dans `app/settings.php`, commenté en français : jours et plages d'ouv
 Avant la mise en ligne, VBM doit fournir :
 
 - **Mentions légales** dans `app/settings.php` (`legal`) : dénomination, adresse du siège, numéro d'entreprise, email de contact RGPD et durée de conservation. Tant qu'elles sont vides, la page « Confidentialité » affiche « à compléter par VBM ». Elles n'ont pas été inventées.
-- **Durée de conservation** (`data_retention_months`) : après ce délai, la tâche de nuit efface le contact, le téléphone, l'email, la rue et le commentaire des enlèvements terminés ou annulés. Les chiffres restent. Par défaut rien n'est effacé, c'est à décider par VBM.
+- **Durée de conservation** (`data_retention_months`) : après ce délai, la tâche de nuit efface le contact, le téléphone, l'email, la rue, le commentaire et les photos des enlèvements terminés ou annulés. Les chiffres restent. Par défaut rien n'est effacé, c'est à décider par VBM.
+- **Droit à l'effacement** : bouton « Effacer les données de ce garage » sur sa fiche.
 - Les coordonnées affichées (WhatsApp, téléphone, email) viennent du site de VBM et sont à confirmer.
 
-Seules les données utiles à l'enlèvement sont demandées. Les photos ne sont jamais enregistrées sur le serveur.
+Seules les données utiles à l'enlèvement sont demandées. Les photos sont gardées avec la réservation, hors de la partie publique du site, et la page « Confidentialité » le dit.
 
 ## 10. Coûts annuels estimés
 
@@ -279,5 +294,5 @@ php php/tests/run.php
 npx playwright test -c playwright.php.config.ts
 ```
 
-- `php/tests/run.php`, 53 tests : créneaux, changements d'heure, jours fériés, formulaire, capacité, doublons, réservations simultanées, Google Agenda (création, modification, suppression, reprise après panne), statuts et historique, « Marquer enlevé » avec un seul email, email en échec puis renvoi, changement de créneau, annulation, garages (rattachement, fusion), statistiques, connexion (mauvais mot de passe, limite, cookie, CSRF, sessions fermées), export CSV, SMTP.
-- Playwright, 28 tests sur ordinateur et téléphone : les tests du site public (les mêmes que pour la version Next.js) et ceux de l'administration (connexion, réservation du site visible et marquée enlevée, nouvel enlèvement, planning, déconnexion, aucune page plus large que l'écran).
+- `php/tests/run.php`, 59 tests : créneaux, changements d'heure, jours fériés, formulaire, capacité, doublons, réservations simultanées, Google Agenda (création, modification, suppression, reprise après panne), statuts et historique, « Marquer enlevé » avec un seul email, email en échec puis renvoi, changement de créneau, annulation, garages (rattachement, fusion), statistiques, connexion (mauvais mot de passe, limite, cookie, CSRF, sessions fermées), mot de passe oublié jusqu'au bout, photos (enregistrées, protégées, jointes aux renvois), « Remettre à enlever », note interne, effacement d'un garage, exports CSV, SMTP.
+- Playwright, 32 tests sur ordinateur et téléphone : les tests du site public (les mêmes que pour la version Next.js) et ceux de l'administration (connexion, « œil » du mot de passe, réservation du site visible et marquée enlevée, photos visibles et protégées, nouvel enlèvement, planning, feuille de route, déconnexion, aucune page plus large que l'écran).

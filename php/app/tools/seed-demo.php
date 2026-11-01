@@ -2,7 +2,8 @@
 /**
  * Données fictives pour une démonstration ou des captures d'écran :
  *
- *   php app/tools/seed-demo.php
+ *   php app/tools/seed-demo.php            garages, enlèvements et photos fictifs
+ *   php app/tools/seed-demo.php --photos   seulement des photos sur les prochains enlèvements
  *
  * Refuse de tourner hors du mode démonstration ('demo' => true dans
  * config.php) : les statistiques de production ne sont jamais faussées.
@@ -27,6 +28,72 @@ use Bwc\Time;
 if (!App::config()->demo()) {
     fwrite(STDERR, "Refusé : réservé au mode démonstration.\n");
     exit(1);
+}
+
+/**
+ * Photo de démonstration dessinée par le serveur : une jante avec une trace
+ * de frottement, sous un angle différent selon $variant.
+ */
+function demoPhoto(int $variant): string
+{
+    $w = 1200;
+    $h = 900;
+    $image = imagecreatetruecolor($w, $h);
+    for ($y = 0; $y < $h; $y++) {
+        $shade = 196 - (int) ($y / $h * 40);
+        imageline($image, 0, $y, $w, $y, imagecolorallocate($image, $shade, $shade, $shade - 4));
+    }
+    $cx = 600 + ($variant % 3 - 1) * 60;
+    $cy = 450;
+    imagefilledellipse($image, $cx, $cy, 760, 760, imagecolorallocate($image, 28, 28, 30));
+    imagefilledellipse($image, $cx, $cy, 600, 600, imagecolorallocate($image, 192, 194, 198));
+    imagefilledellipse($image, $cx, $cy, 520, 520, imagecolorallocate($image, 120, 122, 126));
+    imagesetthickness($image, 46);
+    $spoke = imagecolorallocate($image, 205, 207, 211);
+    for ($i = 0; $i < 5; $i++) {
+        $angle = deg2rad($i * 72 + $variant * 11);
+        imageline($image, $cx, $cy, (int) ($cx + cos($angle) * 255), (int) ($cy + sin($angle) * 255), $spoke);
+    }
+    imagefilledellipse($image, $cx, $cy, 150, 150, imagecolorallocate($image, 210, 212, 216));
+    imagefilledellipse($image, $cx, $cy, 60, 60, imagecolorallocate($image, 70, 70, 74));
+    // Trace de frottement sur le bord de la jante.
+    imagesetthickness($image, 5);
+    $scratch = imagecolorallocate($image, 238, 238, 240);
+    $start = 200 + $variant * 37;
+    for ($i = 0; $i < 6; $i++) {
+        imagearc($image, $cx, $cy, 584 - $i * 6, 584 - $i * 6, $start + $i * 3, $start + 40 + $i * 4, $scratch);
+    }
+    imagestring($image, 5, 24, $h - 36, 'Photo de demonstration - B2B Wheels Collect', imagecolorallocate($image, 60, 60, 64));
+    ob_start();
+    imagejpeg($image, null, 82);
+    return (string) ob_get_clean();
+}
+
+/** Ajoute 1 à 3 photos à un enlèvement sur deux parmi les prochains. */
+function addDemoPhotos(): int
+{
+    $pdo = Database::pdo();
+    $rows = $pdo->query("SELECT id FROM bwc_bookings WHERE status IN ('pending', 'confirmed') AND photo_count = 0 ORDER BY starts_at LIMIT 12")->fetchAll(PDO::FETCH_COLUMN);
+    $added = 0;
+    foreach ($rows as $i => $id) {
+        if ($i % 2 === 1) {
+            continue;
+        }
+        $count = 1 + $i % 3;
+        $photos = [];
+        for ($n = 0; $n < $count; $n++) {
+            $photos[] = ['filename' => 'photo-' . ($n + 1) . '.jpg', 'content_type' => 'image/jpeg', 'content' => demoPhoto((int) $id + $n)];
+        }
+        App::photos()->save((int) $id, $photos);
+        $pdo->prepare('UPDATE bwc_bookings SET photo_count = ? WHERE id = ?')->execute([$count, $id]);
+        $added += $count;
+    }
+    return $added;
+}
+
+if (in_array('--photos', $argv, true)) {
+    echo addDemoPhotos() . " photos fictives ajoutées.\n";
+    exit(0);
 }
 
 $garages = [
@@ -123,4 +190,4 @@ for ($i = 0; $i < 10; $i++) {
         $count++;
     }
 }
-echo "$count enlèvements fictifs et " . count($garageIds) . " garages créés.\n";
+echo "$count enlèvements fictifs, " . count($garageIds) . ' garages et ' . addDemoPhotos() . " photos créés.\n";

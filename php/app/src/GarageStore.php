@@ -187,4 +187,43 @@ final class GarageStore
         $statement->execute([$like, $like, $like, $like]);
         return $statement->fetchAll();
     }
+
+    /**
+     * Droit à l'effacement (RGPD) : efface les données personnelles du garage
+     * et de toutes ses réservations, ainsi que leurs photos. Les chiffres
+     * (dates, nombre de jantes) restent pour les statistiques.
+     *
+     * @return array{ok: bool, message: string, bookings?: int}
+     */
+    public function erase(int $id, ?PhotoStore $photos, int $adminId): array
+    {
+        $statement = $this->pdo->prepare("SELECT COUNT(*) FROM bwc_bookings WHERE garage_id = ? AND status IN ('pending', 'confirmed')");
+        $statement->execute([$id]);
+        if ((int) $statement->fetchColumn() > 0) {
+            return ['ok' => false, 'message' => 'Ce garage a encore des enlèvements à faire : annulez-les ou marquez-les enlevés avant d’effacer ses données.'];
+        }
+        $ids = Database::transaction(function () use ($id, $adminId): array {
+            $statement = $this->pdo->prepare('SELECT id FROM bwc_bookings WHERE garage_id = ?');
+            $statement->execute([$id]);
+            $ids = array_map('intval', $statement->fetchAll(\PDO::FETCH_COLUMN));
+            $this->pdo->prepare(
+                "UPDATE bwc_bookings SET garage_name = 'Client effacé', contact_name = '—', phone = '', email = '', street = '—',
+                 comment = '', garage_reference = '', internal_note = '', cancel_reason = '' WHERE garage_id = ?",
+            )->execute([$id]);
+            $this->pdo->prepare('UPDATE bwc_notifications n JOIN bwc_bookings b ON b.id = n.booking_id SET n.recipients = \'\' WHERE b.garage_id = ?')->execute([$id]);
+            $now = BookingStore::datetime(time());
+            foreach ($ids as $bookingId) {
+                $this->pdo->prepare("INSERT INTO bwc_booking_history (booking_id, action, details, admin_id, created_at) VALUES (?, 'erased', 'Données personnelles effacées à la demande du garage', ?, ?)")
+                    ->execute([$bookingId, $adminId, $now]);
+            }
+            $this->pdo->prepare("UPDATE bwc_garages SET name = 'Client effacé', contact_name = '', phone = '', email = '', street = '', postal_code = '', notes = '', updated_at = ? WHERE id = ?")
+                ->execute([$now, $id]);
+            return $ids;
+        });
+        foreach ($ids as $bookingId) {
+            $photos?->deleteForBooking($bookingId);
+        }
+        Log::info('garage.erased', ['garage' => $id, 'bookings' => count($ids), 'admin' => $adminId]);
+        return ['ok' => true, 'message' => 'Données personnelles effacées (' . count($ids) . ' réservation' . (count($ids) > 1 ? 's' : '') . ' anonymisée' . (count($ids) > 1 ? 's' : '') . ').', 'bookings' => count($ids)];
+    }
 }

@@ -192,6 +192,29 @@
     );
   }
 
+  async function reopen(button) {
+    const answer = await ask({
+      title: "Remettre « à enlever » ?",
+      text: `${button.dataset.garage} : l'enlèvement redevient à faire. Le garage a déjà reçu l'email confirmant l'enlèvement ; prévenez-le si besoin. Il ne recevra pas un second email s'il est de nouveau marqué enlevé.`,
+      ok: "Remettre à enlever",
+    });
+    if (!answer) return;
+    await afterAction(await api("reopen", { body: { id: Number(button.dataset.id) } }), sheet.open ? Number(button.dataset.id) : null);
+  }
+
+  // Note interne : enregistrée sans fermer le panneau.
+  document.addEventListener("submit", async (event) => {
+    const form = event.target.closest("form[data-note]");
+    if (!form) return;
+    event.preventDefault();
+    const button = form.querySelector("button");
+    button.disabled = true;
+    const result = await api("note", { body: { id: Number(form.dataset.note), note: form.note.value } });
+    button.disabled = false;
+    toast(result.json.message, !result.ok);
+    if (result.ok) dirty = true;
+  });
+
   async function resend(button) {
     button.disabled = true;
     const result = await api("resend", { body: { id: Number(button.dataset.id) } });
@@ -369,9 +392,54 @@
     (mode === "edit" ? form.garageName : search)?.focus();
   }
 
+  /* Photos en grand ---------------------------------------------------------- */
+
+  const lightbox = document.getElementById("lightbox");
+  let gallery = [];
+  let galleryIndex = 0;
+
+  function showPhoto(index) {
+    galleryIndex = (index + gallery.length) % gallery.length;
+    lightbox.querySelector("img").src = gallery[galleryIndex].url;
+    lightbox.querySelector("img").alt = gallery[galleryIndex].alt;
+    lightbox.querySelector(".lightbox-count").textContent = gallery.length > 1 ? `${galleryIndex + 1} / ${gallery.length}` : "";
+    lightbox.querySelectorAll(".lightbox-nav").forEach((button) => (button.hidden = gallery.length < 2));
+  }
+
+  function openPhoto(link) {
+    gallery = [...link.closest("[data-gallery]").querySelectorAll("[data-photo]")].map((a) => ({ url: a.dataset.photo, alt: a.querySelector("img")?.alt ?? "" }));
+    showPhoto(Number(link.dataset.index));
+    lightbox.showModal();
+  }
+
+  lightbox?.addEventListener("click", (event) => {
+    const step = event.target.closest("[data-lightbox-step]");
+    if (step) showPhoto(galleryIndex + Number(step.dataset.lightboxStep));
+    else if (event.target === lightbox) lightbox.close();
+  });
+  lightbox?.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowRight") showPhoto(galleryIndex + 1);
+    if (event.key === "ArrowLeft") showPhoto(galleryIndex - 1);
+  });
+  // Glisser du doigt sur téléphone.
+  let touchX = null;
+  lightbox?.addEventListener("touchstart", (event) => (touchX = event.touches[0].clientX), { passive: true });
+  lightbox?.addEventListener("touchend", (event) => {
+    if (touchX === null || gallery.length < 2) return;
+    const delta = event.changedTouches[0].clientX - touchX;
+    if (Math.abs(delta) > 50) showPhoto(galleryIndex + (delta < 0 ? 1 : -1));
+    touchX = null;
+  });
+
   /* Délégation des clics --------------------------------------------------- */
 
   document.addEventListener("click", (event) => {
+    const photoLink = event.target.closest("[data-photo]");
+    if (photoLink && lightbox) {
+      event.preventDefault();
+      openPhoto(photoLink);
+      return;
+    }
     const target = event.target.closest(
       "[data-booking], [data-action], [data-edit], [data-new-booking], [data-close], [data-edit-garage], [data-cancel-garage], .bell-button",
     );
@@ -395,6 +463,7 @@
       else if (action === "confirm") confirmBooking(target);
       else if (action === "cancel") cancelBooking(target);
       else if (action === "resend") resend(target);
+      else if (action === "reopen") reopen(target);
     } else if (target.matches("[data-booking]")) {
       document.querySelectorAll("[data-bell]").forEach(closeBell);
       openBooking(Number(target.dataset.booking));
@@ -516,6 +585,30 @@
       }, 250);
     });
   }
+
+  document.querySelector("[data-print]")?.addEventListener("click", () => window.print());
+
+  document.querySelector("[data-erase-garage]")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const answer = await ask({
+      title: "Effacer les données de ce garage ?",
+      text: `${button.dataset.garage} : nom, contacts, adresses, commentaires et photos seront effacés de toutes ses réservations. Cette action est définitive.`,
+      ok: "Effacer définitivement",
+      danger: true,
+    });
+    if (!answer) return;
+    const result = await api("garage-erase", { body: { id: Number(button.dataset.eraseGarage) } });
+    if (result.ok) {
+      try {
+        sessionStorage.setItem("bwc-toast", result.json.message);
+      } catch {
+        /* navigation privée */
+      }
+      window.location.assign("garages.php");
+    } else {
+      toast(result.json.message, true);
+    }
+  });
 
   /* Planning : vue « Jour » par défaut sur téléphone ------------------------ */
 

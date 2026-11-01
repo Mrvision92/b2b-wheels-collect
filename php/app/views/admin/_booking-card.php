@@ -12,7 +12,7 @@ use Bwc\Admin\View;
 <article class="card">
   <div class="card-top">
     <div>
-      <h3><?= View::e($b['garage_name']) ?></h3>
+      <h3><?= View::e($b['garage_name']) ?><?= View::photoBadge($b) ?></h3>
       <p class="muted"><?= View::e($b['city']) ?> · <?= View::e(View::rims($b['rim_count'])) ?></p>
     </div>
     <?= View::pill($b, $now) ?>

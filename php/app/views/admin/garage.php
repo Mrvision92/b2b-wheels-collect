@@ -52,7 +52,7 @@ $prefill = json_encode([
       <thead><tr><th>Date</th><th class="desktop-only">Référence</th><th>Jantes</th><th>Statut</th></tr></thead>
       <tbody>
 <?php foreach ($bookings as $b): ?>
-        <tr><td><button type="button" class="row-link" data-booking="<?= $b['id'] ?>"><?= View::e(View::dateShort($b['slot_date'])) ?></button><small class="cell-sub"><?= View::e(View::range($b)) ?></small></td>
+        <tr><td><button type="button" class="row-link" data-booking="<?= $b['id'] ?>"><?= View::e(View::dateShort($b['slot_date'])) ?></button><?= View::photoBadge($b) ?><small class="cell-sub"><?= View::e(View::range($b)) ?></small></td>
           <td class="muted mono desktop-only"><?= View::e($b['reference']) ?></td><td><?= $b['rim_count'] ?></td><td><?= View::pill($b, $now) ?></td></tr>
 <?php endforeach ?>
       </tbody>
@@ -95,6 +95,12 @@ $prefill = json_encode([
       <p class="muted">Si ce garage existe deux fois dans l'annuaire, rattachez l'autre fiche à celle-ci : ses réservations sont conservées.</p>
       <div class="search-field"><?= View::icon('search') ?><input type="search" class="input" placeholder="Rechercher la fiche en double…" data-merge-search="<?= (int) $garage['id'] ?>" autocomplete="off" aria-label="Rechercher la fiche en double"></div>
       <ul class="suggestions" data-merge-results hidden></ul>
+    </div>
+
+    <div class="merge erase">
+      <h3>Effacer les données</h3>
+      <p class="muted">À la demande du garage (RGPD) : son nom, ses contacts, ses adresses, ses commentaires et ses photos sont effacés. Les dates et nombres de jantes restent dans les statistiques. Définitif.</p>
+      <button type="button" class="btn btn-outline btn-danger" data-erase-garage="<?= (int) $garage['id'] ?>" data-garage="<?= View::e($garage['name']) ?>"><?= View::icon('x', 'icon icon-sm') ?>Effacer les données de ce garage</button>
     </div>
   </section>
 </div>

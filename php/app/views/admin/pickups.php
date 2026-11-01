@@ -27,9 +27,9 @@ $sortLink = static function (string $key, string $label) use ($sort, $query): st
 <?= View::pageHeader('Gestion des collectes', 'Tous vos enlèvements.', 'Un seul endroit pour organiser, suivre et confirmer chaque collecte de jantes.', true, 'Enlèvements', 'Suivez et confirmez vos collectes.') ?>
 
 <section class="kpis" aria-label="Chiffres clés">
-  <?= View::kpi("Aujourd'hui", 'calendar', View::count($stats['todayCount']), 'Programmés ce jour') ?>
-  <?= View::kpi('À venir', 'clock', View::count($stats['upcomingCount']), 'En attente de collecte') ?>
-  <?= View::kpi('Effectués ce mois', 'check-circle', View::count($stats['completed']), 'Enlèvements terminés', 'desktop-only') ?>
+  <?= View::kpi("Aujourd'hui", 'calendar', View::count($stats['todayCount']), 'Programmés ce jour', '', '', '?tab=aujourdhui') ?>
+  <?= View::kpi('À venir', 'clock', View::count($stats['upcomingCount']), 'En attente de collecte', '', '', '?tab=a-enlever') ?>
+  <?= View::kpi('Effectués ce mois', 'check-circle', View::count($stats['completed']), 'Enlèvements terminés', 'desktop-only', '', '?tab=enleves') ?>
   <?= View::kpi('Jantes récupérées', 'bars', (string) $stats['rims'], 'Volume mensuel', 'desktop-only') ?>
 </section>
 
@@ -60,7 +60,7 @@ $sortLink = static function (string $key, string $label) use ($sort, $query): st
 <?php foreach ($result['rows'] as $b): ?>
       <tr>
         <td class="muted mono"><?= View::e($b['reference']) ?></td>
-        <td><button type="button" class="row-link" data-booking="<?= $b['id'] ?>"><?= View::e($b['garage_name']) ?></button><small class="cell-sub"><?= View::e($b['city']) ?></small></td>
+        <td><button type="button" class="row-link" data-booking="<?= $b['id'] ?>"><?= View::e($b['garage_name']) ?></button><?= View::photoBadge($b) ?><small class="cell-sub"><?= View::e($b['city']) ?></small></td>
         <td><strong class="cell-strong"><?= View::e(View::dateShort($b['slot_date'])) ?></strong><small class="cell-sub"><?= View::e(View::range($b)) ?></small></td>
         <td><strong class="cell-strong"><?= $b['rim_count'] ?></strong> jante<?= $b['rim_count'] > 1 ? 's' : '' ?></td>
         <td><?= View::pill($b, $now) ?></td>

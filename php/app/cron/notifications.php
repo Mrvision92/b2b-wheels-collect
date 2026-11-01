@@ -16,6 +16,9 @@ if (PHP_SAPI !== 'cli') {
 
 require dirname(__DIR__) . '/bootstrap.php';
 
+// Dernière exécution, affichée dans l'administration (Mon compte → État du service).
+@file_put_contents(Bwc\App::config()->storage('cron') . '/notifications.last', (string) time());
+
 $summary = Bwc\App::notifications()->retryPending(50);
 if ($summary['emails'] + $summary['calendar'] > 0) {
     Bwc\Log::info('cron.notifications', $summary);

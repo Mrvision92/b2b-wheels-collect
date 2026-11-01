@@ -16,7 +16,8 @@ $me = Auth::requirePage();
 $store = Auth::store();
 Auth::start();
 $flash = $_SESSION['flash'] ?? null;
-unset($_SESSION['flash']);
+$flashLink = $_SESSION['flash_link'] ?? null;
+unset($_SESSION['flash'], $_SESSION['flash_link']);
 $error = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -49,8 +50,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $invited = $store->find($store->create($email, $name));
             try {
-                Access::send($invited, true);
+                $sentToken = Access::send($invited, true);
                 $_SESSION['flash'] = "Invitation envoyée à $email.";
+                if (\Bwc\App::mailer()->kind() === 'demo') {
+                    $_SESSION['flash_link'] = 'mot-de-passe.php?jeton=' . rawurlencode($sentToken);
+                }
             } catch (\Throwable $exception) {
                 Log::error('admin.invite_mail_failed', ['admin' => $invited['id'], 'error' => $exception->getMessage()]);
                 $error = "Le compte est créé mais l'email n'a pas pu partir. Vérifiez la configuration des emails (php app/tools/check.php).";
@@ -74,6 +78,8 @@ View::render('account', [
     'me' => $me,
     'admins' => $store->all(),
     'flash' => $flash,
+    'flashLink' => $flashLink,
     'error' => $error,
     'csrf' => Auth::csrf(),
+    'status' => \Bwc\Admin\ServiceStatus::collect(),
 ], ['active' => 'account', 'crumb' => 'Mon compte', 'title' => 'Mon compte', 'admin' => $me]);

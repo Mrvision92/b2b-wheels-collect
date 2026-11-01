@@ -19,6 +19,7 @@ $lastDate = static fn (?string $utc): string => $utc === null ? '—' : View::da
 <section class="panel list-panel" aria-labelledby="garages-title">
   <div class="panel-head">
     <div><h2 id="garages-title">Garages</h2><p class="panel-sub"><?= $result['total'] ?> garage<?= $result['total'] > 1 ? 's' : '' ?> client<?= $result['total'] > 1 ? 's' : '' ?></p></div>
+    <a href="export.php?quoi=garages<?= $q !== '' ? '&amp;q=' . View::e(rawurlencode($q)) : '' ?>" class="panel-link"><?= View::icon('download', 'icon icon-sm') ?>Exporter (CSV)</a>
   </div>
   <div class="list-tools">
     <form class="search-field search-wide" role="search" data-live-search>

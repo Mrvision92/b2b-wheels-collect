@@ -24,9 +24,9 @@ $max = max(1, ...array_column($stats['chart'], 'completed'));
 <?php endif ?>
 
 <section class="kpis" aria-label="Chiffres clés">
-  <?= View::kpi("Aujourd'hui", 'calendar', View::count($stats['todayCount']), 'Enlèvements prévus') ?>
-  <?= View::kpi('À venir', 'clock', View::count($stats['upcomingCount']), 'Prochaines réservations') ?>
-  <?= View::kpi($stats['isCurrentMonth'] ? 'Effectués ce mois' : 'Effectués en ' . explode(' ', $monthName)[0], 'check-circle', View::count($stats['completed']), $trend !== '' ? $trend . ' <span class="desktop-only">' . ($stats['isCurrentMonth'] ? 'vs même période' : 'vs mois précédent') . '</span>' : 'Enlèvements terminés', '', $stats['isCurrentMonth'] ? 'Ce mois-ci' : \Bwc\Time::capitalize(explode(' ', $monthName)[0])) ?>
+  <?= View::kpi("Aujourd'hui", 'calendar', View::count($stats['todayCount']), 'Enlèvements prévus', '', '', 'enlevements.php?tab=aujourdhui') ?>
+  <?= View::kpi('À venir', 'clock', View::count($stats['upcomingCount']), 'Prochaines réservations', '', '', 'enlevements.php?tab=a-enlever') ?>
+  <?= View::kpi($stats['isCurrentMonth'] ? 'Effectués ce mois' : 'Effectués en ' . explode(' ', $monthName)[0], 'check-circle', View::count($stats['completed']), $trend !== '' ? $trend . ' <span class="desktop-only">' . ($stats['isCurrentMonth'] ? 'vs même période' : 'vs mois précédent') . '</span>' : 'Enlèvements terminés', '', $stats['isCurrentMonth'] ? 'Ce mois-ci' : \Bwc\Time::capitalize(explode(' ', $monthName)[0]), 'enlevements.php?tab=enleves') ?>
   <?= View::kpi('Jantes récupérées', 'bars', (string) $stats['rims'], '<span class="desktop-only">Total de jantes ' . View::e($monthWord) . '</span><span class="mobile-only">' . ($stats['isCurrentMonth'] ? 'Ce mois-ci' : View::e(\Bwc\Time::capitalize($monthName))) . '</span>') ?>
 </section>
 
@@ -66,7 +66,7 @@ $max = max(1, ...array_column($stats['chart'], 'completed'));
       <li>
         <button type="button" class="next-item" data-booking="<?= $b['id'] ?>">
           <span class="next-time"><?= View::e($b['start_time']) ?><?php if ($b['slot_date'] !== $today): ?><small><?= View::e(View::relativeDay($b['slot_date'], $today)) ?></small><?php endif ?></span>
-          <span class="next-main"><strong><?= View::e($b['garage_name']) ?></strong><small><?= View::e($b['city']) ?> · <?= View::e(View::rims($b['rim_count'])) ?></small></span>
+          <span class="next-main"><strong><?= View::e($b['garage_name']) ?><?= View::photoBadge($b) ?></strong><small><?= View::e($b['city']) ?> · <?= View::e(View::rims($b['rim_count'])) ?></small></span>
           <?= View::pill($b, $now) ?>
         </button>
       </li>
@@ -79,7 +79,12 @@ $max = max(1, ...array_column($stats['chart'], 'completed'));
 <section class="panel table-panel" aria-labelledby="today-title">
   <div class="panel-head">
     <h2 id="today-title">Enlèvements du jour</h2>
-    <a href="enlevements.php?tab=aujourdhui" class="panel-link">Tout afficher <?= View::icon('arrow', 'icon icon-sm') ?></a>
+    <span class="panel-links">
+<?php if ($todayRows !== []): ?>
+      <a href="feuille-de-route.php" class="panel-link">Feuille de route <?= View::icon('arrow', 'icon icon-sm') ?></a>
+<?php endif ?>
+      <a href="enlevements.php?tab=aujourdhui" class="panel-link">Tout afficher <?= View::icon('arrow', 'icon icon-sm') ?></a>
+    </span>
   </div>
 <?php if ($todayRows === []): ?>
   <p class="empty">Aucun enlèvement prévu aujourd'hui.</p>
@@ -90,7 +95,7 @@ $max = max(1, ...array_column($stats['chart'], 'completed'));
 <?php foreach ($todayRows as $b): ?>
       <tr>
         <td class="strong"><?= View::e($b['start_time']) ?></td>
-        <td><button type="button" class="row-link" data-booking="<?= $b['id'] ?>"><?= View::e($b['garage_name']) ?></button></td>
+        <td><button type="button" class="row-link" data-booking="<?= $b['id'] ?>"><?= View::e($b['garage_name']) ?></button><?= View::photoBadge($b) ?></td>
         <td><?= View::e($b['city']) ?></td>
         <td><?= View::e(View::rims($b['rim_count'])) ?></td>
         <td><?= View::pill($b, $now) ?></td>

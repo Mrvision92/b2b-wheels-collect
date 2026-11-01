@@ -2,7 +2,7 @@
 /**
  * Tâche quotidienne : sauvegarde de la base (14 dernières gardées dans
  * app/storage/backups), nettoyage, et effacement des données personnelles
- * anciennes si une durée est fixée dans settings.php.
+ * et des photos anciennes si une durée est fixée dans settings.php.
  *
  * hPanel → Avancé → Tâches Cron, une fois par jour (par exemple à 3 h) :
  *   /usr/bin/php /home/u123456789/domains/votre-domaine.be/app/cron/maintenance.php
@@ -16,6 +16,9 @@ if (PHP_SAPI !== 'cli') {
 }
 
 require dirname(__DIR__) . '/bootstrap.php';
+
+// Dernière exécution, affichée dans l'administration (Mon compte → État du service).
+@file_put_contents(Bwc\App::config()->storage('cron') . '/maintenance.last', (string) time());
 
 use Bwc\App;
 use Bwc\Backup;
@@ -39,12 +42,16 @@ if ($months !== null) {
     );
     $bookings->execute([$limit]);
     $pdo->prepare('UPDATE bwc_notifications n JOIN bwc_bookings b ON b.id = n.booking_id SET n.recipients = \'\' WHERE b.street = \'—\'')->execute();
+    $photos = 0;
+    foreach ($pdo->query("SELECT DISTINCT p.booking_id FROM bwc_booking_photos p JOIN bwc_bookings b ON b.id = p.booking_id WHERE b.street = '—'")->fetchAll(\PDO::FETCH_COLUMN) as $bookingId) {
+        $photos += App::photos()->deleteForBooking((int) $bookingId);
+    }
     // Garages sans enlèvement récent : le nom et la ville restent, pas les coordonnées de personnes.
     $garages = $pdo->prepare(
         "UPDATE bwc_garages g SET contact_name = '', phone = '', email = '', notes = '', updated_at = ?
          WHERE g.email <> '' AND NOT EXISTS (SELECT 1 FROM bwc_bookings b WHERE b.garage_id = g.id AND b.slot_date >= ?)",
     );
     $garages->execute([BookingStore::datetime(time()), $limit]);
-    Log::info('maintenance.retention', ['bookings' => $bookings->rowCount(), 'garages' => $garages->rowCount(), 'months' => $months]);
-    echo "Données personnelles effacées : {$bookings->rowCount()} enlèvement(s), {$garages->rowCount()} garage(s).\n";
+    Log::info('maintenance.retention', ['bookings' => $bookings->rowCount(), 'garages' => $garages->rowCount(), 'photos' => $photos, 'months' => $months]);
+    echo "Données personnelles effacées : {$bookings->rowCount()} enlèvement(s), {$garages->rowCount()} garage(s), $photos photo(s).\n";
 }

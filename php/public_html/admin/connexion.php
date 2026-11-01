@@ -55,7 +55,7 @@ ob_start(); ?>
 <?php if ($error): ?>      <p class="flash flash-error" role="alert"><?= View::e($error) ?></p>
 <?php endif ?>
       <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" class="input" autocomplete="username" value="<?= View::e($email) ?>" required autofocus></div>
-      <div class="field"><label for="password">Mot de passe</label><input id="password" name="password" type="password" class="input" autocomplete="current-password" required></div>
+      <div class="field"><label for="password">Mot de passe</label><?= View::passwordField('password', 'password', 'current-password', 'required') ?></div>
       <button class="btn btn-primary btn-wide btn-tall">Se connecter</button>
       <p class="auth-link"><a href="mot-de-passe.php">Mot de passe oublié ?</a></p>
     </form>

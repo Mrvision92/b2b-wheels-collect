@@ -17,6 +17,7 @@ final class App
 {
     private static ?BookingStore $store = null;
     private static ?GarageStore $garages = null;
+    private static ?PhotoStore $photos = null;
     private static ?Mailer $mailer = null;
     private static ?CalendarClient $calendar = null;
     private static bool $calendarBuilt = false;
@@ -34,6 +35,11 @@ final class App
     public static function garages(): GarageStore
     {
         return self::$garages ??= new GarageStore(Database::pdo());
+    }
+
+    public static function photos(): PhotoStore
+    {
+        return self::$photos ??= new PhotoStore(Database::pdo(), self::config()->storage('photos'));
     }
 
     public static function calendar(): ?CalendarClient
@@ -65,7 +71,7 @@ final class App
 
     public static function notifications(): Notifications
     {
-        return new Notifications(self::store(), self::mailer(), self::calendar(), self::config());
+        return new Notifications(self::store(), self::mailer(), self::calendar(), self::config(), self::photos());
     }
 
     public static function bookings(): BookingService

@@ -31,6 +31,7 @@ $latestAt = $latest !== [] ? strtotime($latest[0]['created_at'] . ' UTC') : 0;
   <link rel="preload" href="../assets/fonts/mona-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="<?= View::asset('assets/admin.css') ?>">
   <script src="<?= View::asset('assets/admin.js') ?>" defer></script>
+  <script src="<?= View::asset('assets/password.js') ?>" defer></script>
 </head>
 <body class="page-<?= View::e($page['active']) ?>" data-today="<?= View::e($today) ?>">
   <aside class="sidebar">
@@ -105,6 +106,14 @@ $latestAt = $latest !== [] ? strtotime($latest[0]['created_at'] . ' UTC') : 0;
         <button value="ok" class="btn btn-primary confirm-ok"></button>
       </div>
     </form>
+  </dialog>
+
+  <dialog class="lightbox" id="lightbox" aria-label="Photo du garage">
+    <button type="button" class="lightbox-close" data-close aria-label="Fermer"><?= View::icon('x') ?></button>
+    <button type="button" class="lightbox-nav lightbox-prev" data-lightbox-step="-1" aria-label="Photo précédente"><?= View::icon('chevron-left') ?></button>
+    <img alt="">
+    <button type="button" class="lightbox-nav lightbox-next" data-lightbox-step="1" aria-label="Photo suivante"><?= View::icon('chevron-right') ?></button>
+    <p class="lightbox-count"></p>
   </dialog>
 
   <div class="toast" role="status" aria-live="polite" hidden></div>

@@ -12,13 +12,13 @@ async function login(page: Page, path = "/admin/") {
   await page.goto(path);
   await expect(page).toHaveURL(/connexion\.php/);
   await page.getByLabel("Email").fill(ADMIN.email);
-  await page.getByLabel("Mot de passe").fill(ADMIN.password);
+  await page.getByLabel("Mot de passe", { exact: true }).fill(ADMIN.password);
   await page.getByRole("button", { name: "Se connecter" }).click();
   await expect(page).not.toHaveURL(/connexion\.php/);
 }
 
 /** Réservation passée par le site public, comme un garage. */
-async function publicBooking(page: Page, garageName: string) {
+async function publicBooking(page: Page, garageName: string, photo?: Buffer) {
   let data = await (await page.request.get("/api/availability.php")).json();
   let day = data.days.find((d: { slots: { available: boolean }[] }) => d.slots.some((s) => s.available));
   if (!day) {
@@ -30,6 +30,7 @@ async function publicBooking(page: Page, garageName: string) {
   counter++;
   const response = await page.request.post("/api/bookings.php", {
     multipart: {
+      ...(photo ? { "photos[]": { name: "jante.png", mimeType: "image/png", buffer: photo } } : {}),
       data: JSON.stringify({
         requestId: crypto.randomUUID(),
         garageName,
@@ -58,10 +59,10 @@ test("the admin requires a login and rejects a wrong password", async ({ page })
   await page.goto("/admin/planning.php");
   await expect(page).toHaveURL(/connexion\.php\?retour=/);
   await page.getByLabel("Email").fill(ADMIN.email);
-  await page.getByLabel("Mot de passe").fill("pas-le-bon");
+  await page.getByLabel("Mot de passe", { exact: true }).fill("pas-le-bon");
   await page.getByRole("button", { name: "Se connecter" }).click();
   await expect(page.getByText("Email ou mot de passe incorrect.")).toBeVisible();
-  await page.getByLabel("Mot de passe").fill(ADMIN.password);
+  await page.getByLabel("Mot de passe", { exact: true }).fill(ADMIN.password);
   await page.getByRole("button", { name: "Se connecter" }).click();
   await expect(page).toHaveURL(/planning\.php/);
 });
@@ -127,7 +128,7 @@ test("VBM creates a pickup for a new garage and finds it in the planning", async
 
 test("every admin page fits the screen", async ({ page }) => {
   await login(page);
-  for (const path of ["/admin/", "/admin/enlevements.php", "/admin/garages.php", "/admin/planning.php", "/admin/planning.php?vue=month", "/admin/compte.php"]) {
+  for (const path of ["/admin/", "/admin/enlevements.php", "/admin/garages.php", "/admin/planning.php", "/admin/planning.php?vue=month", "/admin/compte.php", "/admin/feuille-de-route.php"]) {
     await page.goto(path);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expectNoHorizontalScroll(page);
@@ -141,3 +142,49 @@ test("logging out closes the session", async ({ page }) => {
   await page.goto("/admin/");
   await expect(page).toHaveURL(/connexion\.php/);
 });
+
+test("photos sent by a garage are visible in the admin and open in large view", async ({ page }) => {
+  // Une vraie image PNG de 320 × 240, dessinée dans la page.
+  await page.goto("/");
+  const png = await page.evaluate(async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 320;
+    canvas.height = 240;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#48484a";
+    ctx.fillRect(0, 0, 320, 240);
+    const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), "image/png"));
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+  const garage = `Garage Photo ${Date.now()}`;
+  const reference = await publicBooking(page, garage, Buffer.from(png));
+
+  await login(page, `/admin/enlevements.php?q=${reference}`);
+  await expect(page.locator(".photo-badge:visible").first()).toBeVisible();
+  await page.getByRole("button", { name: "Détails" }).first().click();
+  const sheet = page.getByRole("dialog", { name: "Détails de l'enlèvement" });
+  const thumb = sheet.getByRole("img", { name: `Photo 1 envoyée par ${garage}` });
+  await expect(thumb).toBeVisible();
+  expect(await thumb.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(320);
+  await thumb.click();
+  await expect(page.getByRole("dialog", { name: "Photo du garage" })).toBeVisible();
+
+  // Sans connexion, la photo n'est pas accessible.
+  const src = await thumb.getAttribute("src");
+  const anonymous = await page.context().browser()!.newContext();
+  expect((await anonymous.request.get(new URL(src!, page.url()).toString())).status()).toBe(401);
+  await anonymous.close();
+});
+
+test("the password can be shown while typing it", async ({ page }) => {
+  await page.goto("/admin/connexion.php");
+  const field = page.getByLabel("Mot de passe", { exact: true });
+  await field.fill("un secret");
+  await expect(field).toHaveAttribute("type", "password");
+  await page.getByRole("button", { name: "Afficher le mot de passe" }).click();
+  await expect(field).toHaveAttribute("type", "text");
+  await page.getByRole("button", { name: "Masquer le mot de passe" }).click();
+  await expect(field).toHaveAttribute("type", "password");
+  await expect(page.getByRole("link", { name: "Mot de passe oublié ?" })).toBeVisible();
+});
+

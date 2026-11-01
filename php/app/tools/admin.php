@@ -78,7 +78,7 @@ switch ($command) {
             echo "Compte créé. Connexion : " . Bwc\App::config()->appUrl() . "/admin/\n";
         } else {
             $admin = $store->find($store->create($email, $name));
-            $link = Access::send($admin, true);
+            $link = Access::link(Access::send($admin, true));
             echo "Compte créé, lien envoyé à $email (valable " . Access::INVITATION_HOURS . " h).\n";
             if (Bwc\App::mailer()->kind() === 'demo') {
                 echo "Mode démonstration, lien : $link\n";

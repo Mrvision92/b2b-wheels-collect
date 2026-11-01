@@ -320,3 +320,89 @@ test('le calendrier du mois ne montre que des disponibilités', function () {
     $admin = Availability::daySlotsForAdmin('2026-11-03', Config::get()->booking(), $store, null, Tests::NOW);
     eq([$admin[0]['available'], $admin[0]['remaining'], $admin[1]['remaining']], [false, 0, 2]);
 });
+
+/* Photos, annulation du marquage, note interne, effacement ---------------- */
+
+function photoStore(): Bwc\PhotoStore
+{
+    $dir = sys_get_temp_dir() . '/bwc-photos-' . getmypid();
+    @mkdir($dir, 0777, true);
+    return new Bwc\PhotoStore(Database::pdo(), $dir);
+}
+
+test('photos : enregistrées hors du site, jointes aux renvois de la notification VBM', function () {
+    resetDatabase();
+    $mailer = new FakeMailer();
+    $photos = photoStore();
+    $store = new Bwc\BookingStore(Database::pdo());
+    $notifications = new Bwc\Notifications($store, $mailer, null, Config::get(), $photos);
+    $service = new Bwc\BookingService(Config::get(), $store, new Bwc\GarageStore(Database::pdo()), null, $notifications, static fn (): int => Tests::NOW);
+    $b = $service->create(bookingInput(), 2)['booking'];
+    eq($photos->save($b['id'], [
+        ['filename' => 'photo-1.jpg', 'content_type' => 'image/jpeg', 'content' => "\xFF\xD8\xFFune"],
+        ['filename' => 'photo-2.png', 'content_type' => 'image/png', 'content' => "\x89PNG\r\n\x1A\ndeux"],
+    ]), 2);
+    $list = $photos->forBooking($b['id']);
+    eq(array_column($list, 'file_name'), ['photo-1.jpg', 'photo-2.png']);
+    ok($photos->path($list[0]) !== null, 'fichier présent');
+
+    // La notification VBM échoue puis repart plus tard : les photos sont jointes au renvoi.
+    $mailer->failure = new MailerException('indisponible (test)', false);
+    $notifications->send($b, 'vbm_notification');
+    $mailer->failure = null;
+    Database::pdo()->exec('UPDATE bwc_notifications SET created_at = created_at - INTERVAL 10 MINUTE');
+    $notifications->retryPending();
+    $vbm = array_values(array_filter($mailer->sent, static fn ($e) => str_starts_with($e['subject'], 'Nouvel enlèvement')))[0];
+    eq(count($vbm['attachments']), 2, 'photos jointes au renvoi');
+    contains($vbm['html'], '2 photos jointes à cet email');
+
+    eq($photos->deleteForBooking($b['id']), 2);
+    eq($photos->forBooking($b['id']), []);
+});
+
+test('« Marqué par erreur » : retour à « à enlever », sans second email au nouveau marquage', function () {
+    resetDatabase();
+    $mailer = new FakeMailer();
+    [$service, , $store] = services(null, $mailer);
+    $b = $service->create(bookingInput())['booking'];
+    $service->complete($b['id'], 1);
+    $reopened = $service->reopen($b['id'], 1);
+    eq([$reopened['ok'], $reopened['changed']], [true, true]);
+    $row = $store->find($b['id']);
+    eq([$row['status'], $row['completed_at'], $row['completed_by']], ['confirmed', null, null]);
+    eq($store->history($b['id'])[0]['action'], 'reopened');
+    $service->complete($b['id'], 1);
+    eq(count(array_filter($mailer->subjects(), static fn ($s) => str_starts_with($s, "Confirmation d'enlèvement"))), 1, 'toujours un seul email');
+    eq($service->reopen($service->create(bookingInput(['slot' => '1100']))['booking']['id'], 1)['changed'], false, 'rien à faire sur un enlèvement à venir');
+});
+
+test('note interne : enregistrée, historisée, jamais dans les emails au garage', function () {
+    resetDatabase();
+    $mailer = new FakeMailer();
+    [$service, , $store] = services(null, $mailer);
+    $b = $service->create(bookingInput())['booking'];
+    $service->setNote($b['id'], "Passer par l'arrière, demander Paul", 2);
+    eq($store->find($b['id'])['internal_note'], "Passer par l'arrière, demander Paul");
+    eq($store->history($b['id'])[0]['action'], 'note');
+    $service->complete($b['id'], 2);
+    ok(!str_contains(end($mailer->sent)['text'], 'Paul'), 'la note ne part pas chez le garage');
+});
+
+test('effacement RGPD d\'un garage : refusé s\'il reste un enlèvement à faire, puis données et photos effacées, chiffres conservés', function () {
+    resetDatabase();
+    $photos = photoStore();
+    [$service, , $store, $garages] = services(null, new FakeMailer());
+    $a = $service->create(bookingInput(['garageName' => 'Garage Dupont', 'email' => 'atelier@dupont.be', 'comment' => 'code portail 1234']))['booking'];
+    $b = $service->create(bookingInput(['garageName' => 'Garage Dupont', 'email' => 'atelier@dupont.be', 'date' => '2026-11-04']))['booking'];
+    $photos->save($a['id'], [['filename' => 'photo-1.jpg', 'content_type' => 'image/jpeg', 'content' => "\xFF\xD8\xFFx"]]);
+    eq($garages->erase($a['garage_id'], $photos, 1)['ok'], false, 'enlèvements à faire');
+    $service->complete($a['id'], 1);
+    $service->cancel($b['id'], 1, 'Demande du garage');
+    $result = $garages->erase($a['garage_id'], $photos, 1);
+    eq([$result['ok'], $result['bookings']], [true, 2]);
+    $row = $store->find($a['id']);
+    eq([$row['garage_name'], $row['email'], $row['phone'], $row['comment'], $row['rim_count'], $row['status']], ['Client effacé', '', '', '', 4, 'completed']);
+    eq($garages->find($a['garage_id'])['email'], '');
+    eq($photos->forBooking($a['id']), []);
+    eq($store->history($a['id'])[0]['action'], 'erased');
+});
