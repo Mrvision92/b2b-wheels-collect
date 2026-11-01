@@ -28,7 +28,13 @@ final class Tests
     public static function stopServers(): void
     {
         foreach (self::$servers as $process) {
+            // Le serveur PHP lance des processus enfants (PHP_CLI_SERVER_WORKERS) : on les arrête aussi.
+            $pid = (int) (proc_get_status($process)['pid'] ?? 0);
+            if ($pid > 0) {
+                exec('pkill -TERM -P ' . $pid);
+            }
             proc_terminate($process);
+            proc_close($process);
         }
         self::$servers = [];
     }

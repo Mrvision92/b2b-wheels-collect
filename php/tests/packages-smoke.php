@@ -21,8 +21,18 @@ if (!is_dir($site) || !is_dir($admin)) {
 
 $work = sys_get_temp_dir() . '/bwc-packages-' . getmypid();
 @mkdir("$work/photos", 0777, true);
-$siteUrl = 'http://127.0.0.1:3411';
-$adminUrl = 'http://127.0.0.1:3412';
+
+/** Port libre, pour ne jamais tomber sur un serveur resté d'un essai précédent. */
+$freePort = static function (): int {
+    $socket = stream_socket_server('tcp://127.0.0.1:0');
+    $port = (int) substr((string) stream_socket_get_name($socket, false), strrpos((string) stream_socket_get_name($socket, false), ':') + 1);
+    fclose($socket);
+    return $port;
+};
+$sitePort = $freePort();
+$adminPort = $freePort();
+$siteUrl = "http://127.0.0.1:$sitePort";
+$adminUrl = "http://127.0.0.1:$adminPort";
 $config = static fn (): string => var_export([
     'app_url' => $siteUrl,
     'admin_url' => $adminUrl,
@@ -65,8 +75,9 @@ $created = $cli($adminEnv, "php $admin/app/tools/admin.php create vbm@paquets.te
 $check(str_contains($created, 'Compte créé'), 'admin : premier compte créé par app/tools/admin.php');
 
 $servers = [];
-foreach ([[$site, 3411, $siteEnv], [$admin, 3412, $adminEnv]] as [$dir, $port, $env]) {
-    $servers[] = proc_open("exec php -S 127.0.0.1:$port -t $dir/public_html $dir/dev-router.php", [0 => ['pipe', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, $dir, $env + getenv() + ['PHP_CLI_SERVER_WORKERS' => '4']);
+foreach ([[$site, $sitePort, $siteEnv], [$admin, $adminPort, $adminEnv]] as [$dir, $port, $env]) {
+    // Un seul processus par serveur : il s'arrête entièrement à la fin du test.
+    $servers[] = proc_open("exec php -S 127.0.0.1:$port -t $dir/public_html $dir/dev-router.php", [0 => ['pipe', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, $dir, $env + getenv());
     for ($i = 0; $i < 100 && !@fsockopen('127.0.0.1', $port); $i++) {
         usleep(50_000);
     }
@@ -152,6 +163,7 @@ try {
 } finally {
     foreach ($servers as $server) {
         proc_terminate($server);
+        proc_close($server);
     }
 }
 
